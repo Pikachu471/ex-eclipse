@@ -1,0 +1,2279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ex Eclipse — chat pour ta communauté</title>
+<style>
+  :root{
+    --rail:#1a1b1e;
+    --sidebar:#232428;
+    --chat:#2b2c31;
+    --input:#35363c;
+    --hairline:#3a3b41;
+    --text:#e7e7ea;
+    --text-dim:#9a9ba3;
+    --text-faint:#6c6d75;
+    --accent:#6f6ffb;
+    --accent-hover:#5e5ef0;
+    --online:#3ecf8e;
+    --danger:#f0555f;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:var(--font);
+    background:var(--rail);
+    color:var(--text);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+  input,textarea{font-family:inherit;color:inherit;}
+  ::selection{background:rgba(111,111,251,.35);}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:#1a1b1e;border-radius:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ---------- Auth screen ---------- */
+  #auth{
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(111,111,251,.18), transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(62,207,142,.10), transparent 40%),
+      var(--rail);
+  }
+  .auth-card{
+    width:380px;
+    max-width:90vw;
+    background:var(--sidebar);
+    border:1px solid var(--hairline);
+    border-radius:16px;
+    padding:36px 32px 28px;
+  }
+  .auth-logo{
+    width:44px;height:44px;border-radius:12px;
+    background:linear-gradient(135deg,var(--accent),#9d6ffb);
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;margin-bottom:18px;
+  }
+  .auth-card h1{font-size:21px;margin:0 0 4px;letter-spacing:-.01em;}
+  .auth-card p.sub{color:var(--text-dim);font-size:14px;margin:0 0 22px;line-height:1.5;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+  .field input{
+    width:100%;padding:10px 12px;border-radius:8px;
+    background:#1e1f23;border:1px solid var(--hairline);
+    font-size:14px;outline:none;
+  }
+  .field input:focus{border-color:var(--accent);}
+  .btn-primary{
+    width:100%;padding:11px;border-radius:8px;background:var(--accent);
+    color:#fff;font-weight:600;font-size:14px;margin-top:6px;transition:background .15s;
+  }
+  .btn-primary:hover{background:var(--accent-hover);}
+  .auth-switch{margin-top:16px;font-size:13px;color:var(--text-dim);text-align:center;}
+  .auth-switch button{color:var(--accent);font-weight:600;}
+  .auth-error{color:var(--danger);font-size:13px;margin:-6px 0 12px;min-height:16px;}
+  .avatar-pick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+  .avatar-opt{
+    width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:#1e1f23;border:2px solid transparent;font-size:17px;
+  }
+  .avatar-opt.sel{border-color:var(--accent);}
+  .avatar-opt img, .av img, #upAvatar img, .photo-preview img{
+    width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;
+  }
+  .avatar-upload-row{display:flex;align-items:center;gap:12px;margin:2px 0 16px;}
+  .photo-preview{
+    width:48px;height:48px;border-radius:50%;flex:0 0 48px;
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+    background:#1e1f23;border:2px dashed var(--hairline);color:var(--text-faint);overflow:hidden;
+  }
+  .photo-preview.has-img{border-style:solid;border-color:var(--accent);}
+  .upload-btn{
+    padding:8px 14px;border-radius:6px;background:var(--input);color:var(--text);font-size:13px;font-weight:600;
+  }
+  .upload-btn:hover{background:#3f4046;}
+  .color-opt{width:28px;height:28px;border-radius:50%;border:2px solid transparent;}
+  .color-opt.sel{border-color:#fff;box-shadow:0 0 0 2px var(--sidebar);}
+  .av{border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1e1f23;position:relative;}
+  .av.clickable{cursor:pointer;}
+
+  /* ---------- App layout ---------- */
+  #app{display:none;height:100%;}
+  #app.on{display:flex;}
+
+  /* server rail */
+  #rail{
+    width:72px;flex:0 0 72px;background:var(--rail);
+    display:flex;flex-direction:column;align-items:center;
+    padding:12px 0;gap:8px;overflow-y:auto;
+  }
+  .rail-btn{
+    width:48px;height:48px;border-radius:24px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--sidebar);font-size:20px;position:relative;
+    transition:border-radius .15s, background .15s;flex:0 0 auto;
+  }
+  .rail-btn:hover, .rail-btn.active{border-radius:16px;background:var(--accent);}
+  .rail-btn.active::before{
+    content:"";position:absolute;left:-12px;top:50%;transform:translateY(-50%);
+    width:4px;height:22px;background:#fff;border-radius:0 4px 4px 0;
+  }
+  .rail-sep{width:32px;height:2px;background:var(--hairline);border-radius:1px;margin:2px 0;flex:0 0 auto;}
+  .rail-btn.add{color:var(--online);}
+  .rail-btn.add:hover{background:var(--online);color:#0b1f16;}
+
+  /* second column */
+  #col2{width:240px;flex:0 0 240px;background:var(--sidebar);display:flex;flex-direction:column;min-width:0;}
+  .col2-header{
+    height:52px;flex:0 0 52px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;border-bottom:1px solid var(--hairline);font-weight:700;font-size:15px;
+  }
+  .col2-header .icon-btn{color:var(--text-dim);font-size:16px;padding:4px;}
+  .col2-header .icon-btn:hover{color:var(--text);}
+  .col2-body{flex:1;overflow-y:auto;padding:8px;}
+
+  .friend-tabs{display:flex;gap:4px;padding:10px 8px 4px;flex-wrap:wrap;}
+  .ftab{padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;color:var(--text-dim);}
+  .ftab:hover{background:var(--input);color:var(--text);}
+  .ftab.active{background:var(--input);color:var(--text);}
+  .ftab .badge{background:var(--danger);color:#fff;border-radius:8px;font-size:10px;padding:0 5px;margin-left:5px;}
+
+  .list-item{
+    display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:2px;
+    font-size:14px;color:var(--text-dim);position:relative;
+  }
+  .list-item:hover, .list-item.active{background:var(--input);color:var(--text);}
+  .list-item .av{
+    width:32px;height:32px;border-radius:50%;background:#1e1f23;display:flex;align-items:center;justify-content:center;
+    font-size:16px;flex:0 0 32px;position:relative;
+  }
+  .dot{position:absolute;width:10px;height:10px;border-radius:50%;bottom:-1px;right:-1px;border:2px solid var(--sidebar);}
+  .dot.on{background:var(--online);}
+  .dot.off{background:var(--text-faint);}
+  .list-item .meta{min-width:0;flex:1;}
+  .list-item .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .list-item .sub{font-size:12px;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .list-item .act{display:none;gap:6px;flex:0 0 auto;}
+  .list-item:hover .act{display:flex;}
+  .icon-sm{
+    width:26px;height:26px;border-radius:50%;background:#1e1f23;display:flex;align-items:center;justify-content:center;
+    font-size:12px;color:var(--text-dim);
+  }
+  .icon-sm:hover{color:var(--text);}
+  .icon-sm.yes:hover{color:var(--online);}
+  .icon-sm.no:hover{color:var(--danger);}
+
+  .channel-item{
+    display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;color:var(--text-dim);
+    font-size:15px;margin-bottom:1px;
+  }
+  .channel-item:hover{background:var(--input);color:var(--text);}
+  .channel-item.active{background:var(--input);color:var(--text);}
+  .channel-item .hash{color:var(--text-faint);font-weight:700;}
+  .channel-item span:nth-child(2){flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .chan-gear{opacity:0;color:var(--text-faint);font-size:12px;padding:3px;border-radius:4px;flex:0 0 auto;}
+  .channel-item:hover .chan-gear{opacity:1;}
+  .chan-gear:hover{color:var(--text);}
+  .section-label{
+    font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;
+    letter-spacing:.03em;padding:14px 8px 4px;display:flex;justify-content:space-between;align-items:center;gap:4px;
+  }
+  .section-label .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .section-label button{color:var(--text-faint);font-size:14px;flex:0 0 auto;}
+  .section-label button:hover{color:var(--text);}
+
+  /* user panel bottom of col2 */
+  #userpanel{
+    height:56px;flex:0 0 56px;background:#1e1f23;display:flex;align-items:center;gap:8px;padding:0 8px;
+  }
+  #userpanel .av{width:32px;height:32px;border-radius:50%;background:var(--sidebar);display:flex;align-items:center;justify-content:center;font-size:16px;position:relative;flex:0 0 32px;}
+  #userpanel .who{flex:1;min-width:0;cursor:pointer;}
+  #userpanel .who .name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #userpanel .who .status{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #userpanel .gear{padding:6px;color:var(--text-dim);font-size:16px;}
+  #userpanel .gear:hover{color:var(--text);}
+
+  /* main column */
+  #main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--chat);}
+  #mainheader{
+    height:52px;flex:0 0 52px;display:flex;align-items:center;gap:8px;padding:0 16px;
+    border-bottom:1px solid var(--hairline);font-weight:700;box-shadow:0 1px 0 rgba(0,0,0,.1);
+  }
+  #mainheader .sub{color:var(--text-dim);font-weight:400;font-size:13px;margin-left:6px;border-left:1px solid var(--hairline);padding-left:10px;}
+  #mainheader .right{margin-left:auto;display:flex;gap:14px;color:var(--text-dim);}
+  #mainheader .right button:hover{color:var(--text);}
+
+  #messages{flex:1;overflow-y:auto;padding:16px 20px 8px;display:flex;flex-direction:column;}
+  .empty-state{margin:auto;text-align:center;color:var(--text-dim);padding:40px;max-width:360px;}
+  .empty-state .big{font-size:46px;margin-bottom:10px;}
+  .empty-state h3{color:var(--text);margin:0 0 6px;font-size:19px;}
+  .empty-state p{font-size:14px;line-height:1.5;margin:0;}
+
+  .msg{display:flex;gap:14px;padding:8px 6px;border-radius:6px;}
+  .msg:hover{background:rgba(255,255,255,.02);}
+  .msg .av{width:38px;height:38px;border-radius:50%;background:#1e1f23;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 38px;}
+  .msg .body{min-width:0;}
+  .msg .head{display:flex;align-items:baseline;gap:8px;}
+  .msg .head .author{font-weight:700;font-size:15px;}
+  .msg .head .time{font-size:11px;color:var(--text-faint);}
+  .msg .text{font-size:14.5px;line-height:1.45;color:#d9dadf;white-space:pre-wrap;word-break:break-word;}
+
+  #composer{padding:0 20px 20px;flex:0 0 auto;}
+  #composer .box{
+    background:var(--input);border-radius:10px;display:flex;align-items:flex-end;padding:8px 12px;gap:8px;
+  }
+  #composer textarea{
+    flex:1;background:none;border:none;outline:none;resize:none;font-size:14.5px;line-height:1.4;
+    color:var(--text);max-height:140px;padding:6px 2px;
+  }
+  #composer textarea::placeholder{color:var(--text-faint);}
+  #composer .send{
+    width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;
+    color:#fff;flex:0 0 32px;transition:background .15s;
+  }
+  #composer .send:hover{background:var(--accent-hover);}
+
+  /* member list */
+  #col3{width:220px;flex:0 0 220px;background:var(--sidebar);padding:16px 10px;overflow-y:auto;}
+  #col3.hidden{display:none;}
+  #col3 .grp{font-size:12px;font-weight:700;color:var(--text-faint);text-transform:uppercase;padding:6px 6px 8px;}
+
+  /* modals */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;
+    padding:20px;
+  }
+  .overlay.on{display:flex;}
+  .modal{
+    background:var(--sidebar);border-radius:14px;width:420px;max-width:100%;max-height:86vh;overflow:auto;
+    border:1px solid var(--hairline);
+  }
+  .modal-head{padding:20px 24px 4px;}
+  .modal-head h2{margin:0 0 4px;font-size:19px;}
+  .modal-head p{margin:0 0 6px;color:var(--text-dim);font-size:13.5px;line-height:1.5;}
+  .modal-body{padding:14px 24px 20px;}
+  .modal-foot{padding:14px 24px 22px;display:flex;justify-content:flex-end;gap:10px;}
+  .btn-ghost{padding:9px 16px;border-radius:6px;font-weight:600;font-size:14px;color:var(--text-dim);}
+  .btn-ghost:hover{color:var(--text);text-decoration:underline;}
+  .btn-solid{padding:9px 18px;border-radius:6px;font-weight:600;font-size:14px;background:var(--accent);color:#fff;}
+  .btn-solid:hover{background:var(--accent-hover);}
+  .btn-solid:disabled{opacity:.5;cursor:default;}
+  .btn-danger{background:var(--danger);}
+  .btn-danger:hover{background:#d84450;}
+  .close-x{position:absolute;top:16px;right:18px;color:var(--text-dim);font-size:18px;}
+  .close-x:hover{color:var(--text);}
+  .modal{position:relative;}
+  .choice-row{display:flex;gap:10px;margin-bottom:6px;}
+  .choice{
+    flex:1;border:1px solid var(--hairline);border-radius:10px;padding:14px;text-align:left;
+  }
+  .choice:hover{border-color:var(--accent);background:rgba(111,111,251,.06);}
+  .choice.sel{border-color:var(--accent);background:rgba(111,111,251,.1);}
+  .choice .t{font-weight:700;font-size:14px;margin-bottom:3px;}
+  .choice .d{font-size:12px;color:var(--text-dim);line-height:1.4;}
+  .invite-box{
+    background:#1e1f23;border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;
+    font-family:monospace;font-size:14px;margin-top:6px;
+  }
+  .invite-box button{color:var(--accent);font-weight:700;font-size:12px;}
+  .server-icon-picker{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+
+  .role-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--hairline);}
+  .role-row:last-child{border-bottom:none;}
+  .role-dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px;}
+  .role-row .rname{flex:1;font-weight:600;font-size:14px;}
+  .perm-role-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--hairline);flex-wrap:wrap;}
+  .perm-role-row:last-child{border-bottom:none;}
+  .perm-role-row .rname{flex:1 0 90px;font-weight:600;font-size:13px;min-width:70px;}
+  .perm-select{
+    padding:6px 8px;border-radius:6px;background:#1e1f23;border:1px solid var(--hairline);
+    color:var(--text);font-size:12px;flex:1 1 120px;min-width:120px;
+  }
+  .perm-check-row{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13.5px;}
+  .perm-check-row input{width:16px;height:16px;flex:0 0 auto;}
+  .role-chip{
+    padding:5px 10px;border-radius:12px;font-size:12px;font-weight:600;border:1px solid var(--hairline);
+    color:var(--text-dim);
+  }
+  .banner-preview{
+    width:100%;height:90px;border-radius:10px;margin-bottom:10px;background-color:#6f6ffb;
+    border:1px solid var(--hairline);position:relative;
+  }
+  .banner-preview .av{
+    position:absolute;left:12px;bottom:-16px;width:40px;height:40px;font-size:19px;
+    border:3px solid var(--sidebar);background:#1e1f23;
+  }
+  .role-badge{
+    display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600;
+    margin:2px 5px 0 0;
+  }
+  .field textarea{
+    width:100%;padding:10px 12px;border-radius:8px;
+    background:#1e1f23;border:1px solid var(--hairline);
+    font-size:14px;outline:none;font-family:inherit;color:inherit;resize:vertical;
+  }
+  .field textarea:focus{border-color:var(--accent);}
+  .verified-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:15px;height:15px;border-radius:50%;background:#3ea6ff;color:#fff;
+    font-size:10px;font-weight:900;margin-left:4px;vertical-align:middle;flex:0 0 auto;
+  }
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--input);border:1px solid var(--hairline);padding:10px 18px;border-radius:8px;
+    font-size:13.5px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  .hint{font-size:12px;color:var(--text-faint);margin-top:-8px;margin-bottom:14px;line-height:1.5;}
+
+  /* ---------- voice channels ---------- */
+  .channel-item.voice .hash{color:var(--online);}
+  .voice-participants{padding:0 8px 6px 30px;}
+  .voice-participant-mini{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px;color:var(--text-dim);}
+  .voice-participant-mini .av{width:20px;height:20px;font-size:11px;flex:0 0 20px;}
+  .voice-participant-mini .icons{display:flex;gap:3px;margin-left:auto;}
+  .voice-participant-mini .icons span{font-size:11px;opacity:.85;}
+
+  .voice-room{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:20px;}
+  .voice-room .vr-title{color:var(--text-dim);font-size:14px;}
+  .voice-grid{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;max-width:640px;}
+  .voice-tile{display:flex;flex-direction:column;align-items:center;gap:10px;width:96px;}
+  .voice-tile .av{width:72px;height:72px;font-size:30px;border:3px solid transparent;transition:border-color .15s, box-shadow .15s;}
+  .voice-tile .av.speaking{border-color:var(--online);box-shadow:0 0 0 4px rgba(62,207,142,.18);}
+  .voice-tile .name{font-size:12.5px;color:var(--text);max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .voice-tile .icons{display:flex;gap:4px;}
+  .voice-tile .icons span{font-size:12px;color:var(--text-faint);}
+  .call-controls{display:flex;gap:14px;align-items:center;}
+  .call-btn{
+    width:52px;height:52px;border-radius:50%;background:var(--input);color:var(--text);
+    display:flex;align-items:center;justify-content:center;font-size:20px;transition:background .15s, transform .1s;
+  }
+  .call-btn:hover{background:#3f4046;}
+  .call-btn.active{background:var(--danger);color:#fff;}
+  .call-btn.hangup{background:var(--danger);color:#fff;}
+  .call-btn.hangup:hover{background:#d84450;}
+  .join-voice-btn{
+    padding:12px 26px;border-radius:10px;background:var(--online);color:#0b1f16;font-weight:700;font-size:15px;
+  }
+  .join-voice-btn:hover{filter:brightness(1.06);}
+
+  #voiceBar{
+    background:#1e1f23;border-top:1px solid var(--hairline);padding:8px 10px;
+    display:flex;align-items:center;gap:8px;font-size:12.5px;
+  }
+  #voiceBar .vb-info{flex:1;min-width:0;}
+  #voiceBar .vb-chan{color:var(--online);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #voiceBar .vb-sub{color:var(--text-faint);font-size:11px;}
+  #voiceBar button{width:28px;height:28px;border-radius:6px;background:var(--input);color:var(--text-dim);font-size:13px;}
+  #voiceBar button:hover{color:var(--text);background:#3f4046;}
+  #voiceBar button.hangup{color:var(--danger);}
+
+  /* ---------- DM calls ---------- */
+  #callBanner{
+    background:#1e1f23;border-bottom:1px solid var(--hairline);padding:12px 20px;
+    display:flex;align-items:center;gap:14px;
+  }
+  #callBanner .cb-text{flex:1;min-width:0;}
+  #callBanner .cb-title{font-weight:700;font-size:14px;}
+  #callBanner .cb-sub{font-size:12px;color:var(--text-dim);}
+  #callBanner .cb-actions{display:flex;gap:8px;}
+  .cb-accept{background:var(--online);color:#0b1f16;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;}
+  .cb-decline{background:var(--danger);color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;}
+
+  /* ---------- admin ---------- */
+  .rail-btn.admin{color:#f0555f;}
+  .rail-btn.admin:hover{background:var(--danger);color:#fff;}
+  .admin-tabs{display:flex;gap:4px;padding:0 24px 10px;}
+  .admin-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;}
+  .admin-row:hover{background:var(--input);}
+  .admin-row .meta{flex:1;min-width:0;font-size:13.5px;}
+  .admin-row .sub{font-size:11.5px;color:var(--text-faint);}
+
+  #mobileToggle{display:none;}
+  @media (max-width: 760px){
+    #rail{width:60px;flex-basis:60px;}
+    #col2{position:fixed;left:60px;top:0;bottom:0;z-index:30;transform:translateX(-100%);transition:transform .2s;width:76vw;}
+    #col2.open{transform:translateX(0);box-shadow:8px 0 24px rgba(0,0,0,.4);}
+    #col3{position:fixed;right:0;top:0;bottom:0;z-index:30;transform:translateX(100%);transition:transform .2s;width:70vw;}
+    #col3.open{transform:translateX(0);}
+    #col3:not(.open){display:none;}
+    #mobileToggle{display:flex;color:var(--text-dim);font-size:18px;padding:4px;margin-right:2px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="auth">
+  <div class="auth-card">
+    <div class="auth-logo">📡</div>
+    <div id="authLogin">
+      <h1>Content de te revoir</h1>
+      <p class="sub">Connecte-toi pour retrouver tes serveurs.</p>
+      <div class="auth-error" id="loginError"></div>
+      <div class="field"><label>Nom d'utilisateur</label><input id="loginUser" autocomplete="username" placeholder="ex. nova_kim"></div>
+      <div class="field"><label>Mot de passe</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <button class="btn-primary" onclick="doLogin()">Se connecter</button>
+      <div class="auth-switch">Nouveau ici ? <button onclick="showRegister()">Créer un compte</button></div>
+    </div>
+    <div id="authRegister" style="display:none;">
+      <h1>Crée ton compte</h1>
+      <p class="sub">Choisis un nom d'utilisateur et un avatar.</p>
+      <div class="auth-error" id="regError"></div>
+      <div class="field"><label>Nom d'utilisateur</label><input id="regUser" placeholder="ex. nova_kim"></div>
+      <div class="field"><label>Mot de passe</label><input id="regPass" type="password" placeholder="6 caractères minimum"></div>
+      <div class="field"><label>Confirmer le mot de passe</label><input id="regPassConfirm" type="password" placeholder="Retape le même mot de passe"></div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Photo de profil</label>
+      <div class="avatar-upload-row">
+        <div class="photo-preview" id="regPhotoPreview">🙂</div>
+        <div>
+          <button type="button" class="upload-btn" onclick="document.getElementById('regPhotoFile').click()">Importer une photo</button>
+          <div class="hint" style="margin:6px 0 0;">JPG ou PNG. Ou choisis un avatar ci-dessous.</div>
+        </div>
+        <input type="file" id="regPhotoFile" accept="image/*" style="display:none">
+      </div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Avatar</label>
+      <div class="avatar-pick" id="regAvatarPick"></div>
+      <button class="btn-primary" onclick="doRegister()">Créer le compte</button>
+      <div class="auth-switch">Déjà inscrit ? <button onclick="showLogin()">Se connecter</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <div id="rail"></div>
+
+  <div id="col2">
+    <div id="userpanelSpacer" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+      <div class="col2-header" id="col2Header"></div>
+      <div class="col2-body" id="col2Body"></div>
+    </div>
+    <div id="voiceBar" style="display:none;"></div>
+    <div id="userpanel">
+      <div class="av" id="upAvatar"></div>
+      <div class="who" onclick="openSettings()">
+        <div class="name" id="upName"></div>
+        <div class="status" id="upStatus"></div>
+      </div>
+      <button class="gear" onclick="openSettings()" title="Paramètres">⚙️</button>
+      <button class="gear" onclick="logout()" title="Déconnexion">⏻</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="mainheader"></div>
+    <div id="callBanner" style="display:none;"></div>
+    <div id="messages"></div>
+    <div id="composer">
+      <div class="box">
+        <textarea id="msgInput" rows="1" placeholder="Écrire un message…"></textarea>
+        <button class="send" onclick="sendCurrentMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="col3" class="hidden"></div>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="overlay" id="ovAdminPanel">
+  <div class="modal" style="width:520px;">
+    <button class="close-x" onclick="closeOverlay('ovAdminPanel')">✕</button>
+    <div class="modal-head"><h2>🛡️ Panneau d'administration</h2><p>Réservé aux comptes administrateurs de la plateforme.</p></div>
+    <div class="admin-tabs">
+      <button class="ftab" id="adminTabBtn-users" onclick="setAdminTab('users')">Comptes</button>
+      <button class="ftab" id="adminTabBtn-servers" onclick="setAdminTab('servers')">Serveurs</button>
+    </div>
+    <div class="modal-body" id="adminTab-users" style="max-height:52vh;overflow-y:auto;"></div>
+    <div class="modal-body" id="adminTab-servers" style="max-height:52vh;overflow-y:auto;display:none;"></div>
+  </div>
+</div>
+
+<div class="overlay" id="ovAddServer">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovAddServer')">✕</button>
+    <div class="modal-head"><h2>Ajouter un serveur</h2><p>Crée ton propre espace ou rejoins-en un avec un code.</p></div>
+    <div class="modal-body">
+      <div class="choice-row">
+        <button class="choice" onclick="switchModal('ovAddServer','ovCreateServer')">
+          <div class="t">➕ Créer un serveur</div>
+          <div class="d">Ton propre espace pour discuter avec qui tu veux.</div>
+        </button>
+        <button class="choice" onclick="switchModal('ovAddServer','ovJoinServer')">
+          <div class="t">🔑 Rejoindre un serveur</div>
+          <div class="d">Entre un code d'invitation pour rejoindre un espace existant.</div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovCreateServer">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovCreateServer')">✕</button>
+    <div class="modal-head"><h2>Personnalise ton serveur</h2><p>Donne-lui un nom et une icône. Tu pourras changer ça plus tard.</p></div>
+    <div class="modal-body">
+      <div class="field"><label>Nom du serveur</label><input id="newServerName" placeholder="ex. Le repaire"></div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Icône</label>
+      <div class="server-icon-picker" id="serverIconPick"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="switchModal('ovCreateServer','ovAddServer')">Retour</button>
+      <button class="btn-solid" onclick="createServer()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovJoinServer">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovJoinServer')">✕</button>
+    <div class="modal-head"><h2>Rejoindre un serveur</h2><p>Colle un code d'invitation ci-dessous.</p></div>
+    <div class="modal-body">
+      <div class="auth-error" id="joinError"></div>
+      <div class="field"><label>Code d'invitation</label><input id="joinCode" placeholder="ex. 7F2KQ1"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="switchModal('ovJoinServer','ovAddServer')">Retour</button>
+      <button class="btn-solid" onclick="joinServer()">Rejoindre</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovServerSettings">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovServerSettings')">✕</button>
+    <div class="modal-head"><h2 id="ssTitle">Paramètres du serveur</h2><p>Invite du monde ou gère ton serveur.</p></div>
+    <div class="modal-body">
+      <button class="btn-ghost" id="ssRolesBtn" style="display:none;padding:9px 12px;background:var(--input);border-radius:6px;margin-bottom:16px;" onclick="goToRoles()">🎭 Gérer les rôles</button>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Code d'invitation</label>
+      <div class="invite-box"><span id="ssInvite"></span><button onclick="copyInvite()">COPIER</button></div>
+      <div style="margin-top:20px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Membres (<span id="ssMemberCount"></span>)</label>
+        <div id="ssMembers"></div>
+      </div>
+      <div id="ssBansWrap" style="margin-top:20px;display:none;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Utilisateurs bannis</label>
+        <div id="ssBans"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost btn-danger-text" id="ssLeaveBtn" onclick="leaveOrDeleteServer()" style="color:var(--danger);"></button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovCreateChannel">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovCreateChannel')">✕</button>
+    <div class="modal-head"><h2>Créer un salon</h2></div>
+    <div class="modal-body">
+      <div class="field"><label>Nom du salon</label><input id="newChannelName" placeholder="ex. général"></div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">Type de salon</label>
+      <div class="choice-row" style="margin-bottom:16px;">
+        <button type="button" class="choice chan-type-opt sel" data-type="text" onclick="pickChannelType('text')">
+          <div class="t">💬 Texte</div>
+          <div class="d">Envoyer des messages, des images, des liens…</div>
+        </button>
+        <button type="button" class="choice chan-type-opt" data-type="voice" onclick="pickChannelType('voice')">
+          <div class="t">🔊 Vocal</div>
+          <div class="d">Se retrouver en vocal avec micro/casque.</div>
+        </button>
+      </div>
+      <div class="field"><label>Catégorie (optionnel)</label>
+        <select id="newChannelCategory" style="width:100%;padding:10px 12px;border-radius:8px;background:#1e1f23;border:1px solid var(--hairline);font-size:14px;color:var(--text);"></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeOverlay('ovCreateChannel')">Annuler</button>
+      <button class="btn-solid" onclick="createChannel()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovCreateCategory">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovCreateCategory')">✕</button>
+    <div class="modal-head"><h2>Créer une catégorie</h2><p>Regroupe tes salons pour garder le serveur bien rangé.</p></div>
+    <div class="modal-body">
+      <div class="field"><label>Nom de la catégorie</label><input id="newCategoryName" placeholder="ex. Général"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeOverlay('ovCreateCategory')">Annuler</button>
+      <button class="btn-solid" onclick="createCategory()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovChannelSettings">
+  <div class="modal" style="width:480px;">
+    <button class="close-x" onclick="closeOverlay('ovChannelSettings')">✕</button>
+    <div class="modal-head"><h2>Paramètres du salon</h2><p>Renomme, déplace ce salon ou choisis qui peut le voir et le gérer.</p></div>
+    <div class="modal-body">
+      <div class="field"><label>Nom du salon</label><input id="csName"></div>
+      <div class="field"><label>Catégorie</label>
+        <select id="csCategory" style="width:100%;padding:10px 12px;border-radius:8px;background:#1e1f23;border:1px solid var(--hairline);font-size:14px;color:var(--text);"></select>
+      </div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:2px;">Permissions par rôle</label>
+      <p class="hint" style="margin-top:2px;">Pour chaque rôle, choisis s'il peut voir ce salon et le gérer (le renommer, le supprimer, changer ces permissions). "Hérité" reprend les réglages généraux du rôle.</p>
+      <div id="csPerms"></div>
+    </div>
+    <div class="modal-foot" style="justify-content:space-between;">
+      <button class="btn-ghost" id="csDeleteBtn" style="color:var(--danger);" onclick="deleteChannel()">Supprimer le salon</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-ghost" onclick="closeOverlay('ovChannelSettings')">Annuler</button>
+        <button class="btn-solid" onclick="saveChannelSettings()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovRoles">
+  <div class="modal" style="width:460px;">
+    <button class="close-x" onclick="closeOverlay('ovRoles')">✕</button>
+    <div id="rolesListView">
+      <div class="modal-head"><h2>Rôles</h2><p>Crée des rôles et choisis ce qu'ils peuvent faire sur ce serveur.</p></div>
+      <div class="modal-body">
+        <div id="rolesList"></div>
+        <button class="btn-ghost" style="padding:12px 0 4px;color:var(--accent);" onclick="openRoleEditor(null)">➕ Créer un rôle</button>
+      </div>
+    </div>
+    <div id="roleEditView" style="display:none;">
+      <div class="modal-head"><h2 id="reTitle">Nouveau rôle</h2></div>
+      <div class="modal-body">
+        <div class="field"><label>Nom du rôle</label><input id="reName" placeholder="ex. Modérateur"></div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Couleur</label>
+        <div class="server-icon-picker" id="reColorPick"></div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin:14px 0 2px;">Permissions</label>
+        <div id="rePerms"></div>
+      </div>
+      <div class="modal-foot" style="justify-content:space-between;">
+        <button class="btn-ghost" id="reDeleteBtn" style="color:var(--danger);" onclick="deleteRole()">Supprimer le rôle</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-ghost" onclick="backToRolesList()">Retour</button>
+          <button class="btn-solid" onclick="saveRole()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovProfileCard">
+  <div class="modal" style="width:340px;padding-bottom:4px;overflow:visible;">
+    <button class="close-x" onclick="closeOverlay('ovProfileCard')" style="z-index:2;">✕</button>
+    <div id="pcBanner" style="height:90px;border-radius:14px 14px 0 0;background-color:#6f6ffb;"></div>
+    <div style="padding:0 20px 22px;margin-top:-30px;">
+      <div class="av" id="pcAvatar" style="width:64px;height:64px;font-size:28px;border:4px solid var(--sidebar);background:#1e1f23;"></div>
+      <div style="margin-top:10px;">
+        <div style="font-size:18px;font-weight:700;" id="pcName"></div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:2px;" id="pcStatus"></div>
+      </div>
+      <div style="font-size:13px;color:var(--text);margin-top:12px;line-height:1.45;white-space:pre-wrap;" id="pcBio"></div>
+      <div style="margin-top:12px;" id="pcRoles"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovAddFriend">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovAddFriend')">✕</button>
+    <div class="modal-head"><h2>Ajouter un ami</h2><p>Tu peux ajouter des amis grâce à leur nom d'utilisateur.</p></div>
+    <div class="modal-body">
+      <div class="auth-error" id="addFriendError"></div>
+      <div class="field"><label>Nom d'utilisateur</label><input id="addFriendInput" placeholder="ex. nova_kim"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-solid" onclick="sendFriendRequest()">Envoyer la demande</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovSettings">
+  <div class="modal">
+    <button class="close-x" onclick="closeOverlay('ovSettings')">✕</button>
+    <div class="modal-head"><h2>Paramètres</h2></div>
+    <div class="friend-tabs" style="padding:0 24px 8px;">
+      <button class="ftab" id="setTabBtn-profile" onclick="setSettingsTab('profile')">👤 Profil</button>
+      <button class="ftab" id="setTabBtn-account" onclick="setSettingsTab('account')">🔒 Compte</button>
+    </div>
+
+    <div class="modal-body" id="setTab-profile">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Photo de profil</label>
+      <div class="avatar-upload-row">
+        <div class="photo-preview" id="setPhotoPreview">🙂</div>
+        <div>
+          <button type="button" class="upload-btn" onclick="document.getElementById('setPhotoFile').click()">Importer une photo</button>
+          <div class="hint" style="margin:6px 0 0;">JPG ou PNG. Ou choisis un avatar ci-dessous.</div>
+        </div>
+        <input type="file" id="setPhotoFile" accept="image/*" style="display:none">
+      </div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Avatar</label>
+      <div class="avatar-pick" id="setAvatarPick"></div>
+
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">Bannière de profil</label>
+      <div class="banner-preview" id="setBannerPreview"><div class="av" id="setBannerAvatarChip"></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;" id="bannerColorPick"></div>
+      <button type="button" class="upload-btn" onclick="document.getElementById('setBannerFile').click()">Importer une image</button>
+      <input type="file" id="setBannerFile" accept="image/*" style="display:none">
+      <p class="hint" style="margin-top:8px;">Choisis une couleur ou importe ta propre image (format large, ~3:1).</p>
+
+      <div class="field" style="margin-top:6px;"><label>Statut</label>
+        <input id="setStatusText" placeholder="ex. en ligne, en pause déj…">
+      </div>
+      <div class="field"><label>Description</label>
+        <textarea id="setBio" rows="3" maxlength="190" placeholder="Parle un peu de toi…"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-body" id="setTab-account" style="display:none;">
+      <div class="field"><label>Nom d'utilisateur</label><input id="setName"></div>
+      <div style="border-top:1px solid var(--hairline);margin-top:6px;padding-top:16px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:10px;">Changer le mot de passe</label>
+        <div class="auth-error" id="pwError"></div>
+        <div class="field"><label>Ancien mot de passe</label><input id="pwOld" type="password" placeholder="Mot de passe actuel"></div>
+        <div class="field"><label>Nouveau mot de passe</label><input id="pwNew" type="password" placeholder="6 caractères minimum"></div>
+        <div class="field"><label>Confirmer le nouveau mot de passe</label><input id="pwNewConfirm" type="password"></div>
+        <button class="btn-ghost" style="background:var(--input);border-radius:6px;padding:9px 16px;" onclick="changePassword()">Mettre à jour le mot de passe</button>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="closeOverlay('ovSettings')">Annuler</button>
+      <button class="btn-solid" onclick="saveSettings()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   RELAY — clone fonctionnel de type Discord (démo statique)
+   Toutes les données sont stockées dans le localStorage du
+   navigateur : idéal pour tester en créant 2-3 comptes.
+   ========================================================= */
+
+const AVATARS = ["🦊","🐼","🐙","🦁","🐸","🦉","🐳","🐺","🦄","🐨","🐯","🐢"];
+const SERVER_ICONS = ["🎮","🎨","🎵","💻","📚","⚽","🎬","🌱","🚀","🍕","🐉","☕"];
+const ROLE_COLORS = ["#99aab5","#f0555f","#faa61a","#f1c40f","#3ecf8e","#3ea6ff","#6f6ffb","#e685d6"];
+const BANNER_COLORS = ["#6f6ffb","#3ea6ff","#3ecf8e","#faa61a","#f0555f","#e685d6","#f1c40f","#4b4d55"];
+const PERMISSIONS = [
+  { key:'createChannels',   label:'Créer des salons' },
+  { key:'createCategories', label:'Créer des catégories' },
+  { key:'manageChannels',   label:'Gérer les salons (renommer, supprimer, permissions)' },
+  { key:'manageRoles',      label:'Gérer les rôles' },
+  { key:'kick',             label:'Expulser des membres' },
+  { key:'ban',              label:'Bannir des membres' },
+];
+const DB_KEY = "relay_db_v1";
+const SESSION_KEY = "relay_session_v1";
+
+function uid(prefix){ return prefix + "_" + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
+function inviteCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
+function now(){ return Date.now(); }
+function fmtTime(ts){
+  const d = new Date(ts);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const time = d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  return sameDay ? "aujourd'hui à " + time : d.toLocaleDateString('fr-FR') + " " + time;
+}
+function esc(s){
+  const d = document.createElement('div'); d.innerText = s ?? ""; return d.innerHTML;
+}
+function avatarHTML(user){
+  const a = user && user.avatar;
+  if(a && a.startsWith('data:image')) return `<img src="${a}" alt="">`;
+  return esc(a || '🙂');
+}
+function verifiedBadgeHTML(user){
+  return (user && user.verified) ? `<span class="verified-badge" title="Compte vérifié">✓</span>` : '';
+}
+function isSiteAdmin(user){ return !!(user && user.siteAdmin); }
+/* Redimensionne/recadre une image importée en carré 128x128 (jpeg compressé)
+   pour rester léger côté localStorage, puis renvoie une dataURL. */
+function fileToAvatarDataURL(file){
+  return new Promise((resolve, reject)=>{
+    if(!file || !file.type.startsWith('image/')){ reject(new Error('not-an-image')); return; }
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = () => reject(new Error('bad-image'));
+      img.onload = ()=>{
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+/* Même principe que fileToAvatarDataURL mais pour une bannière large (~3:1). */
+function fileToBannerDataURL(file){
+  return new Promise((resolve, reject)=>{
+    if(!file || !file.type.startsWith('image/')){ reject(new Error('not-an-image')); return; }
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = () => reject(new Error('bad-image'));
+      img.onload = ()=>{
+        const w = 600, h = 200;
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(w / img.width, h / img.height);
+        const sw = img.width * scale, sh = img.height * scale;
+        ctx.drawImage(img, (w - sw) / 2, (h - sh) / 2, sw, sh);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- persistence ---------- */
+function loadDB(){
+  const raw = localStorage.getItem(DB_KEY);
+  let d = null;
+  if(raw){ try{ d = JSON.parse(raw); }catch(e){} }
+  if(!d) d = { users:{}, servers:{}, messages:{}, friendships:{}, dmThreads:{}, calls:{} };
+  if(!d.calls) d.calls = {}; // self-heals older data saved before voice/calls existed
+  return d;
+}
+let db = loadDB();
+function saveDB(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+/* Compte vérifié fourni par défaut avec l'app. Créé une seule fois,
+   à la première ouverture de la page dans ce navigateur. */
+function seedDefaultAccounts(){
+  const existing = Object.values(db.users).find(u => u.username.toLowerCase() === 'pikachu');
+  if(existing){
+    // Migration: make sure a pikachu account created by an older version of the app
+    // still has its badge and admin rights (without touching a password it may have changed).
+    let changed = false;
+    if(!existing.verified){ existing.verified = true; changed = true; }
+    if(!existing.siteAdmin){ existing.siteAdmin = true; changed = true; }
+    if(changed) saveDB();
+    return;
+  }
+  const id = uid('u');
+  db.users[id] = {
+    id, username: 'pikachu', password: 'Ilhan2811/Sacha0602',
+    avatar: '⚡', banner: '#faa61a', bio: 'Compte officiel vérifié de Ex Eclipse ⚡',
+    statusText: '', verified: true, online: false, siteAdmin: true
+  };
+  ensureFriendship(id);
+  saveDB();
+}
+seedDefaultAccounts();
+
+function ensureFriendship(userId){
+  if(!db.friendships[userId]) db.friendships[userId] = { friends:[], outgoing:[], incoming:[] };
+  return db.friendships[userId];
+}
+
+/* ---------- roles / permissions / categories ---------- */
+function defaultEveryoneRole(){
+  return { id:'everyone', name:'@everyone', color:'#99aab5',
+    perms:{ createChannels:false, createCategories:false, manageChannels:false, manageRoles:false, kick:false, ban:false } };
+}
+/* Backfills fields on servers/channels created before roles & categories existed. */
+function ensureServerShape(s){
+  if(!s) return s;
+  if(!s.categories) s.categories = [];
+  if(!s.roles || !s.roles.length) s.roles = [defaultEveryoneRole()];
+  if(!s.memberRoles) s.memberRoles = {};
+  if(!s.bannedUserIds) s.bannedUserIds = [];
+  (s.channels||[]).forEach(c=>{
+    if(c.categoryId === undefined) c.categoryId = null;
+    if(!c.overwrites) c.overwrites = {};
+    if(!c.type) c.type = 'text';
+  });
+  return s;
+}
+function getServer(sid){ return ensureServerShape(db.servers[sid]); }
+function memberRoleIds(s,userId){ return (s.memberRoles && s.memberRoles[userId]) || []; }
+function memberRolesOf(s,userId){
+  const ids = ['everyone', ...memberRoleIds(s,userId)];
+  return s.roles.filter(r=>ids.includes(r.id));
+}
+function hasPerm(s,userId,permKey){
+  if(s.ownerId===userId) return true;
+  return memberRolesOf(s,userId).some(r=>r.perms && r.perms[permKey]);
+}
+function canViewChannel(s,userId,channel){
+  if(s.ownerId===userId) return true;
+  const ids = ['everyone', ...memberRoleIds(s,userId)];
+  let allow=false, deny=false;
+  ids.forEach(rid=>{ const ov=channel.overwrites[rid]; if(ov){ if(ov.view===true) allow=true; if(ov.view===false) deny=true; } });
+  if(allow) return true;
+  if(deny) return false;
+  return true;
+}
+function canManageChannel(s,userId,channel){
+  if(s.ownerId===userId) return true;
+  const ids = ['everyone', ...memberRoleIds(s,userId)];
+  let allow=false, deny=false;
+  ids.forEach(rid=>{ const ov=channel.overwrites[rid]; if(ov){ if(ov.manage===true) allow=true; if(ov.manage===false) deny=true; } });
+  if(deny) return false;
+  if(allow) return true;
+  return hasPerm(s,userId,'manageChannels');
+}
+
+/* =========================================================
+   VOICE CHANNELS & DM CALLS
+   Simulation UI only: this is a static, front-end-only page,
+   so there is no real microphone/audio transmitted between
+   browsers. "Connecting" just adds you to a shared room record
+   in localStorage, and mute/deafen simply flip a flag on it,
+   so people testing with several accounts in this browser can
+   see each other "in" the same room and toggle their icons.
+   ========================================================= */
+function dmCallId(a,b){ return 'dmcall_' + [a,b].sort().join('_'); }
+
+function currentRoomId(){
+  const u = currentUser(); if(!u) return null;
+  return Object.keys(db.calls).find(rid => db.calls[rid].participants && db.calls[rid].participants[u.id]) || null;
+}
+function roomParticipantIds(roomId){
+  const room = db.calls[roomId];
+  return room ? Object.keys(room.participants) : [];
+}
+function myVoiceState(){
+  const rid = currentRoomId(); if(!rid) return null;
+  return db.calls[rid].participants[currentUser().id];
+}
+function joinRoom(roomId, kind){
+  const u = currentUser();
+  const existing = currentRoomId();
+  if(existing && existing !== roomId) leaveRoom();
+  if(!db.calls[roomId]) db.calls[roomId] = { kind, participants:{} };
+  db.calls[roomId].participants[u.id] = { muted:false, deafened:false };
+  saveDB();
+  renderAll();
+}
+function leaveRoom(){
+  const u = currentUser();
+  const rid = currentRoomId();
+  if(!rid) return;
+  delete db.calls[rid].participants[u.id];
+  if(Object.keys(db.calls[rid].participants).length === 0) delete db.calls[rid];
+  saveDB();
+  renderAll();
+}
+function toggleMic(){
+  const p = myVoiceState(); if(!p) return;
+  p.muted = !p.muted;
+  saveDB(); renderAll();
+}
+function toggleHeadset(){
+  const p = myVoiceState(); if(!p) return;
+  p.deafened = !p.deafened;
+  saveDB(); renderAll();
+}
+function declineCall(roomId){
+  delete db.calls[roomId];
+  saveDB(); renderAll();
+}
+function goToRoom(roomId){
+  const room = db.calls[roomId];
+  if(!room) return;
+  if(room.kind === 'dm'){
+    const u = currentUser();
+    const otherId = Object.keys(room.participants).find(id=>id!==u.id) || roomId.replace('dmcall_','').replace(u.id,'').replace('_','');
+    openDM(otherId);
+  } else {
+    // room.kind === 'channel' — roomId is the channel id, find its server
+    for(const s of Object.values(db.servers)){
+      if(s.channels.some(c=>c.id===roomId)){ openChannel(s.id, roomId); break; }
+    }
+  }
+}
+
+/* =========================================================
+   SESSION / STATE
+   ========================================================= */
+let session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+let state = { view:'home', serverId:null, channelId:null, dmUserId:null, friendTab:'online' };
+
+function currentUser(){ return session ? db.users[session.userId] : null; }
+
+/* =========================================================
+   AUTH
+   ========================================================= */
+function renderAvatarPick(containerId, selected, onPick){
+  const el = document.getElementById(containerId);
+  el.innerHTML = AVATARS.map(a =>
+    `<button type="button" class="avatar-opt ${a===selected?'sel':''}" data-a="${a}">${a}</button>`
+  ).join("");
+  el.querySelectorAll('.avatar-opt').forEach(btn=>{
+    btn.onclick = () => { el.querySelectorAll('.avatar-opt').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); onPick(btn.dataset.a); };
+  });
+}
+let regAvatar = AVATARS[0];
+let regAvatarImage = null; // dataURL if the user uploaded a photo — takes priority over the emoji pick
+renderAvatarPick('regAvatarPick', regAvatar, a=>{ regAvatar=a; regAvatarImage=null; resetPhotoPreview('regPhotoPreview'); });
+
+function resetPhotoPreview(id){
+  const el = document.getElementById(id);
+  if(el){ el.innerHTML = '🙂'; el.classList.remove('has-img'); }
+}
+function wireAvatarUpload(fileInputId, previewId, onDone){
+  const input = document.getElementById(fileInputId);
+  if(!input) return;
+  input.addEventListener('change', async ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    try{
+      const dataUrl = await fileToAvatarDataURL(file);
+      onDone(dataUrl);
+      const preview = document.getElementById(previewId);
+      preview.innerHTML = `<img src="${dataUrl}" alt="">`;
+      preview.classList.add('has-img');
+    }catch(err){
+      showToast("Impossible de lire cette image.");
+    }finally{
+      input.value = '';
+    }
+  });
+}
+wireAvatarUpload('regPhotoFile', 'regPhotoPreview', (url)=>{ regAvatarImage = url; });
+
+function showRegister(){ document.getElementById('authLogin').style.display='none'; document.getElementById('authRegister').style.display='block'; }
+function showLogin(){ document.getElementById('authRegister').style.display='none'; document.getElementById('authLogin').style.display='block'; }
+
+function doRegister(){
+  const uname = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const passConfirm = document.getElementById('regPassConfirm').value;
+  const err = document.getElementById('regError');
+  err.textContent = "";
+  if(uname.length < 3){ err.textContent = "Nom d'utilisateur trop court (3 caractères min)."; return; }
+  if(!/^[a-zA-Z0-9_\.]+$/.test(uname)){ err.textContent = "Lettres, chiffres, _ et . uniquement."; return; }
+  if(pass.length < 6){ err.textContent = "Mot de passe trop court (6 caractères min)."; return; }
+  if(passConfirm !== pass){ err.textContent = "Les deux mots de passe ne correspondent pas."; return; }
+  const exists = Object.values(db.users).some(u => u.username.toLowerCase() === uname.toLowerCase());
+  if(exists){ err.textContent = "Ce nom d'utilisateur est déjà pris."; return; }
+  const id = uid('u');
+  const avatar = regAvatarImage || regAvatar;
+  db.users[id] = { id, username: uname, password: pass, avatar, statusText: "", online:true };
+  ensureFriendship(id);
+  saveDB();
+  session = { userId: id };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  regAvatarImage = null;
+  document.getElementById('regPassConfirm').value = '';
+  boot();
+}
+
+function doLogin(){
+  const uname = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  err.textContent = "";
+  const found = Object.values(db.users).find(u => u.username.toLowerCase() === uname.toLowerCase());
+  if(!found || found.password !== pass){ err.textContent = "Identifiants incorrects."; return; }
+  found.online = true;
+  saveDB();
+  session = { userId: found.id };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  boot();
+}
+
+function logout(){
+  const u = currentUser();
+  if(u){ u.online = false; saveDB(); }
+  leaveRoom();
+  session = null;
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById('app').classList.remove('on');
+  document.getElementById('auth').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+/* =========================================================
+   BOOT / MASTER RENDER
+   ========================================================= */
+function boot(){
+  document.getElementById('auth').style.display = 'none';
+  document.getElementById('app').classList.add('on');
+  renderAll();
+}
+
+function renderAll(){
+  db = loadDB(); // pick up cross-tab / other-account changes
+  renderRail();
+  renderCol2();
+  renderMain();
+  renderCol3();
+  renderUserPanel();
+  renderVoiceBar();
+  renderCallBanner();
+}
+
+/* =========================================================
+   RAIL (servers)
+   ========================================================= */
+function myServers(){
+  const u = currentUser();
+  return Object.values(db.servers).filter(s => s.members.includes(u.id));
+}
+
+function renderRail(){
+  const rail = document.getElementById('rail');
+  const u = currentUser();
+  let html = `<button class="rail-btn ${state.view==='home'?'active':''}" title="Messages privés" onclick="goHome()">💬</button><div class="rail-sep"></div>`;
+  myServers().forEach(s=>{
+    html += `<button class="rail-btn ${state.view==='server'&&state.serverId===s.id?'active':''}" title="${esc(s.name)}" onclick="openServer('${s.id}')">${s.icon}</button>`;
+  });
+  html += `<button class="rail-btn add" title="Ajouter un serveur" onclick="openOverlay('ovAddServer')">➕</button>`;
+  if(isSiteAdmin(u)){
+    html += `<div class="rail-sep"></div><button class="rail-btn admin" title="Administration" onclick="openAdminPanel()">🛡️</button>`;
+  }
+  rail.innerHTML = html;
+}
+
+/* =========================================================
+   COL2 (contextual: friends/DMs or channels)
+   ========================================================= */
+function goHome(){ state.view='home'; state.dmUserId=null; renderAll(); }
+
+function openServer(serverId){
+  const s = db.servers[serverId];
+  if(!s) return;
+  state.view='server'; state.serverId=serverId;
+  state.channelId = (s.channels[0] && s.channels[0].id) || null;
+  renderAll();
+  closeMobileCol2();
+}
+
+function openChannel(serverId, channelId){
+  state.view='server'; state.serverId=serverId; state.channelId=channelId;
+  renderAll();
+  closeMobileCol2();
+}
+function openVoiceChannel(serverId, channelId){
+  state.view='server'; state.serverId=serverId; state.channelId=channelId;
+  joinRoom(channelId, 'channel'); // also calls renderAll()
+  closeMobileCol2();
+}
+
+function renderCol2(){
+  const header = document.getElementById('col2Header');
+  const body = document.getElementById('col2Body');
+  const u = currentUser();
+
+  if(state.view === 'home'){
+    header.innerHTML = `<span>Messages privés</span><button class="icon-btn" title="Ajouter un ami" onclick="openOverlay('ovAddFriend')">➕</button>`;
+    const fr = ensureFriendship(u.id);
+    const incomingCount = fr.incoming.length;
+    body.innerHTML = `
+      <div class="friend-tabs">
+        <button class="ftab ${state.friendTab==='online'?'active':''}" onclick="setFriendTab('online')">En ligne</button>
+        <button class="ftab ${state.friendTab==='all'?'active':''}" onclick="setFriendTab('all')">Tous</button>
+        <button class="ftab ${state.friendTab==='pending'?'active':''}" onclick="setFriendTab('pending')">En attente${incomingCount?`<span class="badge">${incomingCount}</span>`:''}</button>
+      </div>
+      <div id="friendListWrap"></div>
+      <div class="section-label">Messages directs</div>
+      <div id="dmListWrap"></div>
+    `;
+    renderFriendList();
+    renderDMList();
+    return;
+  }
+
+  // server view
+  const s = getServer(state.serverId);
+  if(!s){ goHome(); return; }
+  header.innerHTML = `<span>${esc(s.name)}</span><button class="icon-btn" title="Paramètres du serveur" onclick="openServerSettings('${s.id}')">⚙️</button>`;
+
+  const canCreateChannel = hasPerm(s, u.id, 'createChannels');
+  const canCreateCategory = hasPerm(s, u.id, 'createCategories');
+  const visible = c => canViewChannel(s, u.id, c);
+
+  function channelRow(c){
+    const manage = canManageChannel(s, u.id, c);
+    const isVoice = c.type === 'voice';
+    const connectedIds = isVoice ? roomParticipantIds(c.id) : [];
+    const iAmIn = connectedIds.includes(u.id);
+    const clickAction = isVoice ? `openVoiceChannel('${s.id}','${c.id}')` : `openChannel('${s.id}','${c.id}')`;
+    let row = `<div class="channel-item ${isVoice?'voice':''} ${(isVoice ? iAmIn : state.channelId===c.id)?'active':''}" onclick="${clickAction}">
+      <span class="hash">${isVoice?'🔊':'#'}</span><span>${esc(c.name)}</span>
+      ${manage ? `<button class="chan-gear" title="Paramètres du salon" onclick="event.stopPropagation();openChannelSettings('${c.id}')">⚙️</button>` : ''}
+    </div>`;
+    if(isVoice && connectedIds.length>0){
+      row += `<div class="voice-participants">` + connectedIds.map(pid=>{
+        const pu = db.users[pid]; if(!pu) return '';
+        const p = db.calls[c.id].participants[pid];
+        return `<div class="voice-participant-mini">
+          <div class="av">${avatarHTML(pu)}</div><span>${esc(pu.username)}</span>
+          <span class="icons">${p.muted||p.deafened?'🔇':''}${p.deafened?'🔕':''}</span>
+        </div>`;
+      }).join('') + `</div>`;
+    }
+    return row;
+  }
+
+  let html = `<div class="section-label"><span class="lbl">Salons</span>
+    ${canCreateCategory ? `<button title="Créer une catégorie" onclick="openCreateCategory()">📁➕</button>` : ''}
+    ${canCreateChannel ? `<button title="Créer un salon" onclick="openOverlay('ovCreateChannel')">➕</button>` : ''}
+  </div>`;
+
+  const uncategorized = s.channels.filter(c => c.categoryId===null && visible(c));
+  uncategorized.forEach(c=> html += channelRow(c));
+
+  s.categories.forEach(cat=>{
+    const chans = s.channels.filter(c=>c.categoryId===cat.id && visible(c));
+    if(chans.length===0 && !canCreateChannel) return;
+    html += `<div class="section-label" style="padding-top:16px;"><span class="lbl">${esc(cat.name)}</span></div>`;
+    chans.forEach(c=> html += channelRow(c));
+  });
+
+  body.innerHTML = html;
+}
+
+function setFriendTab(tab){ state.friendTab = tab; renderCol2(); }
+
+function renderFriendList(){
+  const u = currentUser();
+  const fr = ensureFriendship(u.id);
+  const wrap = document.getElementById('friendListWrap');
+  if(!wrap) return;
+
+  if(state.friendTab === 'pending'){
+    let html = '';
+    if(fr.incoming.length===0 && fr.outgoing.length===0){
+      html = `<div style="padding:16px 8px;color:var(--text-faint);font-size:13px;">Aucune demande en attente.</div>`;
+    }
+    fr.incoming.forEach(id=>{
+      const other = db.users[id]; if(!other) return;
+      html += `<div class="list-item">
+        <div class="av">${avatarHTML(other)}</div>
+        <div class="meta"><div class="name">${esc(other.username)}${verifiedBadgeHTML(other)}</div><div class="sub">souhaite être ami</div></div>
+        <div class="act" style="display:flex;">
+          <button class="icon-sm yes" title="Accepter" onclick="acceptFriend('${id}')">✓</button>
+          <button class="icon-sm no" title="Refuser" onclick="declineFriend('${id}')">✕</button>
+        </div>
+      </div>`;
+    });
+    fr.outgoing.forEach(id=>{
+      const other = db.users[id]; if(!other) return;
+      html += `<div class="list-item">
+        <div class="av">${avatarHTML(other)}</div>
+        <div class="meta"><div class="name">${esc(other.username)}${verifiedBadgeHTML(other)}</div><div class="sub">demande envoyée</div></div>
+        <div class="act" style="display:flex;"><button class="icon-sm no" title="Annuler" onclick="cancelOutgoing('${id}')">✕</button></div>
+      </div>`;
+    });
+    wrap.innerHTML = html;
+    return;
+  }
+
+  let ids = fr.friends.slice();
+  if(state.friendTab === 'online') ids = ids.filter(id => db.users[id] && db.users[id].online);
+  if(ids.length === 0){
+    wrap.innerHTML = `<div style="padding:16px 8px;color:var(--text-faint);font-size:13px;">${state.friendTab==='online' ? "Personne en ligne pour l'instant." : "Pas encore d'amis — clique sur ➕ pour en ajouter."}</div>`;
+    return;
+  }
+  wrap.innerHTML = ids.map(id=>{
+    const f = db.users[id]; if(!f) return '';
+    return `<div class="list-item" onclick="openDM('${id}')">
+      <div class="av">${avatarHTML(f)}<span class="dot ${f.online?'on':'off'}"></span></div>
+      <div class="meta"><div class="name">${esc(f.username)}${verifiedBadgeHTML(f)}</div><div class="sub">${esc(f.statusText || (f.online?'En ligne':'Hors ligne'))}</div></div>
+    </div>`;
+  }).join("");
+}
+
+function renderDMList(){
+  const u = currentUser();
+  const wrap = document.getElementById('dmListWrap');
+  if(!wrap) return;
+  const threads = db.dmThreads[u.id] || [];
+  if(threads.length===0){ wrap.innerHTML = `<div style="padding:8px;color:var(--text-faint);font-size:13px;">Rien pour l'instant.</div>`; return; }
+  wrap.innerHTML = threads.map(id=>{
+    const f = db.users[id]; if(!f) return '';
+    return `<div class="list-item ${state.view==='home'&&state.dmUserId===id?'active':''}" onclick="openDM('${id}')">
+      <div class="av">${avatarHTML(f)}<span class="dot ${f.online?'on':'off'}"></span></div>
+      <div class="meta"><div class="name">${esc(f.username)}${verifiedBadgeHTML(f)}</div></div>
+    </div>`;
+  }).join("");
+}
+
+/* =========================================================
+   FRIENDS logic
+   ========================================================= */
+function sendFriendRequest(){
+  const u = currentUser();
+  const uname = document.getElementById('addFriendInput').value.trim();
+  const err = document.getElementById('addFriendError');
+  err.textContent = "";
+  if(!uname){ err.textContent = "Entre un nom d'utilisateur."; return; }
+  const target = Object.values(db.users).find(x => x.username.toLowerCase() === uname.toLowerCase());
+  if(!target){ err.textContent = "Aucun utilisateur avec ce nom."; return; }
+  if(target.id === u.id){ err.textContent = "Tu ne peux pas t'ajouter toi-même."; return; }
+  const frU = ensureFriendship(u.id), frT = ensureFriendship(target.id);
+  if(frU.friends.includes(target.id)){ err.textContent = "Vous êtes déjà amis."; return; }
+  if(frU.outgoing.includes(target.id)){ err.textContent = "Demande déjà envoyée."; return; }
+  if(frU.incoming.includes(target.id)){ acceptFriend(target.id); closeOverlay('ovAddFriend'); return; }
+  frU.outgoing.push(target.id);
+  frT.incoming.push(u.id);
+  saveDB();
+  document.getElementById('addFriendInput').value = '';
+  closeOverlay('ovAddFriend');
+  showToast(`Demande envoyée à ${target.username}`);
+  renderAll();
+}
+
+function acceptFriend(otherId){
+  const u = currentUser();
+  const frU = ensureFriendship(u.id), frO = ensureFriendship(otherId);
+  frU.incoming = frU.incoming.filter(id=>id!==otherId);
+  frO.outgoing = frO.outgoing.filter(id=>id!==u.id);
+  if(!frU.friends.includes(otherId)) frU.friends.push(otherId);
+  if(!frO.friends.includes(u.id)) frO.friends.push(u.id);
+  saveDB(); renderAll();
+}
+function declineFriend(otherId){
+  const u = currentUser();
+  const frU = ensureFriendship(u.id), frO = ensureFriendship(otherId);
+  frU.incoming = frU.incoming.filter(id=>id!==otherId);
+  frO.outgoing = frO.outgoing.filter(id=>id!==u.id);
+  saveDB(); renderAll();
+}
+function cancelOutgoing(otherId){
+  const u = currentUser();
+  const frU = ensureFriendship(u.id), frO = ensureFriendship(otherId);
+  frU.outgoing = frU.outgoing.filter(id=>id!==otherId);
+  frO.incoming = frO.incoming.filter(id=>id!==u.id);
+  saveDB(); renderAll();
+}
+function removeFriend(otherId){
+  const u = currentUser();
+  const frU = ensureFriendship(u.id), frO = ensureFriendship(otherId);
+  frU.friends = frU.friends.filter(id=>id!==otherId);
+  frO.friends = frO.friends.filter(id=>id!==u.id);
+  saveDB(); renderAll();
+}
+
+function openDM(otherId){
+  const u = currentUser();
+  if(!db.dmThreads[u.id]) db.dmThreads[u.id] = [];
+  if(!db.dmThreads[u.id].includes(otherId)) db.dmThreads[u.id].unshift(otherId);
+  if(!db.dmThreads[otherId]) db.dmThreads[otherId] = [];
+  if(!db.dmThreads[otherId].includes(u.id)) db.dmThreads[otherId].unshift(u.id);
+  saveDB();
+  state.view='home'; state.dmUserId = otherId;
+  renderAll();
+  closeMobileCol2();
+}
+
+function dmChannelId(a,b){ return 'dm_' + [a,b].sort().join('_'); }
+
+/* =========================================================
+   SERVERS
+   ========================================================= */
+let pickedServerIcon = SERVER_ICONS[0];
+function openOverlay(id){
+  if(id==='ovCreateServer'){
+    pickedServerIcon = SERVER_ICONS[0];
+    const el = document.getElementById('serverIconPick');
+    el.innerHTML = SERVER_ICONS.map(a=>`<button type="button" class="avatar-opt ${a===pickedServerIcon?'sel':''}" data-a="${a}">${a}</button>`).join("");
+    el.querySelectorAll('.avatar-opt').forEach(btn=>{
+      btn.onclick = () => { el.querySelectorAll('.avatar-opt').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); pickedServerIcon = btn.dataset.a; };
+    });
+    document.getElementById('newServerName').value = '';
+  }
+  if(id==='ovJoinServer'){ document.getElementById('joinCode').value=''; document.getElementById('joinError').textContent=''; }
+  if(id==='ovAddFriend'){ document.getElementById('addFriendInput').value=''; document.getElementById('addFriendError').textContent=''; }
+  if(id==='ovCreateChannel'){
+    document.getElementById('newChannelName').value='';
+    newChannelType = 'text';
+    document.querySelectorAll('#ovCreateChannel .chan-type-opt').forEach(b=>b.classList.toggle('sel', b.dataset.type==='text'));
+    const s = getServer(state.serverId);
+    const sel = document.getElementById('newChannelCategory');
+    sel.innerHTML = `<option value="">Aucune</option>` + s.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  }
+  document.getElementById(id).classList.add('on');
+}
+function closeOverlay(id){ document.getElementById(id).classList.remove('on'); }
+function switchModal(from,to){ closeOverlay(from); openOverlay(to); }
+
+function createServer(){
+  const name = document.getElementById('newServerName').value.trim();
+  if(!name){ return; }
+  const u = currentUser();
+  const sid = uid('s');
+  const chId = uid('c');
+  db.servers[sid] = {
+    id: sid, name, icon: pickedServerIcon, ownerId: u.id,
+    members: [u.id], invite: inviteCode(),
+    channels: [{ id: chId, name: "général", categoryId: null, overwrites: {}, type: 'text' }],
+    categories: [],
+    roles: [defaultEveryoneRole()],
+    memberRoles: {},
+    bannedUserIds: []
+  };
+  saveDB();
+  closeOverlay('ovCreateServer');
+  openServer(sid);
+  showToast(`Serveur "${name}" créé !`);
+}
+
+function joinServer(){
+  const code = document.getElementById('joinCode').value.trim().toUpperCase();
+  const err = document.getElementById('joinError');
+  err.textContent = "";
+  const s = getServer(Object.values(db.servers).find(sv => sv.invite === code)?.id);
+  if(!s){ err.textContent = "Code d'invitation invalide."; return; }
+  const u = currentUser();
+  if(s.bannedUserIds.includes(u.id)){ err.textContent = "Tu as été banni de ce serveur."; return; }
+  if(!s.members.includes(u.id)) s.members.push(u.id);
+  saveDB();
+  closeOverlay('ovJoinServer');
+  openServer(s.id);
+  showToast(`Tu as rejoint "${s.name}" !`);
+}
+
+let newChannelType = 'text';
+function pickChannelType(type){
+  newChannelType = type;
+  document.querySelectorAll('#ovCreateChannel .chan-type-opt').forEach(b=>b.classList.toggle('sel', b.dataset.type===type));
+}
+
+function createChannel(){
+  const name = document.getElementById('newChannelName').value.trim().toLowerCase().replace(/\s+/g,'-');
+  if(!name) return;
+  const s = getServer(state.serverId);
+  const u = currentUser();
+  if(!hasPerm(s,u.id,'createChannels')){ showToast("Tu n'as pas la permission de créer des salons."); return; }
+  const categoryId = document.getElementById('newChannelCategory').value || null;
+  const c = { id: uid('c'), name, categoryId, overwrites:{}, type: newChannelType };
+  s.channels.push(c);
+  saveDB();
+  closeOverlay('ovCreateChannel');
+  if(c.type === 'voice') openVoiceChannel(s.id, c.id);
+  else openChannel(s.id, c.id);
+}
+
+function openCreateCategory(){
+  document.getElementById('newCategoryName').value = '';
+  openOverlay('ovCreateCategory');
+}
+function createCategory(){
+  const name = document.getElementById('newCategoryName').value.trim();
+  if(!name) return;
+  const s = getServer(state.serverId);
+  const u = currentUser();
+  if(!hasPerm(s,u.id,'createCategories')){ showToast("Tu n'as pas la permission de créer des catégories."); return; }
+  s.categories.push({ id: uid('cat'), name });
+  saveDB();
+  closeOverlay('ovCreateCategory');
+  renderAll();
+}
+
+let settingsServerId = null;
+let openMemberRolesFor = null; // which member's role-toggle panel is expanded
+
+function roleBadgesHTML(s,userId){
+  const roles = memberRolesOf(s,userId).filter(r=>r.id!=='everyone');
+  if(roles.length===0) return '';
+  return `<div style="margin-top:2px;">` + roles.map(r=>
+    `<span class="role-badge" style="background:${r.color}26;color:${r.color};">${esc(r.name)}</span>`
+  ).join('') + `</div>`;
+}
+
+function memberRow(s, actor, targetId){
+  const m = db.users[targetId]; if(!m) return '';
+  const isOwner = targetId===s.ownerId;
+  const canKick = !isOwner && targetId!==actor.id && hasPerm(s,actor.id,'kick');
+  const canBan = !isOwner && targetId!==actor.id && hasPerm(s,actor.id,'ban');
+  const canAssignRoles = hasPerm(s,actor.id,'manageRoles');
+  const assignable = s.roles.filter(r=>r.id!=='everyone');
+  let rolePanel = '';
+  if(canAssignRoles && openMemberRolesFor===targetId){
+    const mine = memberRoleIds(s,targetId);
+    rolePanel = `<div style="width:100%;display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline);">` +
+      (assignable.length===0 ? `<span style="font-size:12px;color:var(--text-faint);">Aucun rôle créé — vas dans "Gérer les rôles".</span>` :
+      assignable.map(r=>{
+        const on = mine.includes(r.id);
+        return `<button type="button" class="role-badge" style="cursor:pointer;background:${on?r.color+'55':'transparent'};color:${r.color};border:1px solid ${r.color};" onclick="toggleMemberRole('${targetId}','${r.id}')">${on?'✓ ':''}${esc(r.name)}</button>`;
+      }).join('')) +
+      `</div>`;
+  }
+  return `<div class="list-item" style="flex-wrap:wrap;align-items:flex-start;">
+    <div class="av">${avatarHTML(m)}<span class="dot ${m.online?'on':'off'}"></span></div>
+    <div class="meta" style="cursor:pointer;" onclick="openProfileCard('${targetId}','${s.id}')">
+      <div class="name">${esc(m.username)}${verifiedBadgeHTML(m)}${isOwner?' 👑':''}</div>
+      ${roleBadgesHTML(s,targetId)}
+    </div>
+    <div class="act" style="display:flex;">
+      ${canAssignRoles ? `<button class="icon-sm" title="Gérer les rôles" onclick="openMemberRolesFor = openMemberRolesFor==='${targetId}'?null:'${targetId}'; openServerSettings('${s.id}');">🎭</button>` : ''}
+      ${canKick ? `<button class="icon-sm no" title="Expulser" onclick="kickMember('${s.id}','${targetId}')">👢</button>` : ''}
+      ${canBan ? `<button class="icon-sm no" title="Bannir" onclick="banMember('${s.id}','${targetId}')">⛔</button>` : ''}
+    </div>
+    ${rolePanel}
+  </div>`;
+}
+
+function openServerSettings(sid){
+  const s = getServer(sid);
+  const u = currentUser();
+  settingsServerId = sid;
+  document.getElementById('ssTitle').textContent = s.name;
+  document.getElementById('ssInvite').textContent = s.invite;
+  document.getElementById('ssMemberCount').textContent = s.members.length;
+  document.getElementById('ssMembers').innerHTML = s.members.map(id=>memberRow(s,u,id)).join("");
+
+  const rolesBtn = document.getElementById('ssRolesBtn');
+  rolesBtn.style.display = (s.ownerId===u.id || hasPerm(s,u.id,'manageRoles')) ? 'block' : 'none';
+
+  const canSeeBans = s.ownerId===u.id || hasPerm(s,u.id,'ban');
+  const bansWrap = document.getElementById('ssBansWrap');
+  bansWrap.style.display = (canSeeBans && s.bannedUserIds.length>0) ? 'block' : 'none';
+  if(canSeeBans){
+    document.getElementById('ssBans').innerHTML = s.bannedUserIds.map(id=>{
+      const m = db.users[id];
+      const label = m ? esc(m.username) + verifiedBadgeHTML(m) : 'Utilisateur inconnu';
+      return `<div class="list-item"><div class="av">${m?avatarHTML(m):'❓'}</div><div class="meta"><div class="name">${label}</div></div>
+        <div class="act" style="display:flex;"><button class="icon-sm yes" title="Débannir" onclick="unbanMember('${sid}','${id}')">↩︎</button></div></div>`;
+    }).join('');
+  }
+
+  const leaveBtn = document.getElementById('ssLeaveBtn');
+  leaveBtn.textContent = (s.ownerId === u.id) ? "Supprimer le serveur" : "Quitter le serveur";
+  leaveBtn.dataset.sid = sid;
+  openOverlay('ovServerSettings');
+}
+
+function kickMember(sid, targetId){
+  const s = getServer(sid); const u = currentUser();
+  if(targetId===s.ownerId || !hasPerm(s,u.id,'kick')) return;
+  s.members = s.members.filter(id=>id!==targetId);
+  delete s.memberRoles[targetId];
+  saveDB();
+  showToast("Membre expulsé.");
+  openServerSettings(sid);
+}
+function banMember(sid, targetId){
+  const s = getServer(sid); const u = currentUser();
+  if(targetId===s.ownerId || !hasPerm(s,u.id,'ban')) return;
+  s.members = s.members.filter(id=>id!==targetId);
+  delete s.memberRoles[targetId];
+  if(!s.bannedUserIds.includes(targetId)) s.bannedUserIds.push(targetId);
+  saveDB();
+  showToast("Membre banni.");
+  openServerSettings(sid);
+}
+function unbanMember(sid, targetId){
+  const s = getServer(sid);
+  s.bannedUserIds = s.bannedUserIds.filter(id=>id!==targetId);
+  saveDB();
+  showToast("Membre débanni.");
+  openServerSettings(sid);
+}
+function toggleMemberRole(targetId, roleId){
+  const s = getServer(settingsServerId); const u = currentUser();
+  if(!hasPerm(s,u.id,'manageRoles')) return;
+  if(!s.memberRoles[targetId]) s.memberRoles[targetId] = [];
+  const idx = s.memberRoles[targetId].indexOf(roleId);
+  if(idx>=0) s.memberRoles[targetId].splice(idx,1); else s.memberRoles[targetId].push(roleId);
+  saveDB();
+  openServerSettings(settingsServerId);
+}
+function copyInvite(){
+  const text = document.getElementById('ssInvite').textContent;
+  navigator.clipboard?.writeText(text).catch(()=>{});
+  showToast("Code copié !");
+}
+/* ---------- roles modal ---------- */
+function goToRoles(){
+  closeOverlay('ovServerSettings');
+  openRolesModal(settingsServerId);
+}
+function openRolesModal(sid){
+  settingsServerId = sid;
+  backToRolesList();
+  openOverlay('ovRoles');
+}
+function backToRolesList(){
+  document.getElementById('roleEditView').style.display = 'none';
+  document.getElementById('rolesListView').style.display = 'block';
+  renderRolesList();
+}
+function renderRolesList(){
+  const s = getServer(settingsServerId);
+  document.getElementById('rolesList').innerHTML = s.roles.map(r=>{
+    const memberCount = r.id==='everyone' ? s.members.length : s.members.filter(id=>memberRoleIds(s,id).includes(r.id)).length;
+    return `<div class="role-row">
+      <span class="role-dot" style="background:${r.color};"></span>
+      <span class="rname">${esc(r.name)}</span>
+      <span style="font-size:12px;color:var(--text-faint);">${memberCount} membre${memberCount>1?'s':''}</span>
+      <button class="icon-sm" title="Modifier" onclick="openRoleEditor('${r.id}')">✎</button>
+    </div>`;
+  }).join('');
+}
+
+let editingRoleId = null;
+let editingRoleColor = ROLE_COLORS[0];
+function openRoleEditor(roleId){
+  const s = getServer(settingsServerId);
+  editingRoleId = roleId;
+  const role = roleId ? s.roles.find(r=>r.id===roleId) : { name:'', color: ROLE_COLORS[0], perms:{} };
+  editingRoleColor = role.color;
+
+  document.getElementById('reTitle').textContent = roleId ? 'Modifier le rôle' : 'Nouveau rôle';
+  const nameInput = document.getElementById('reName');
+  nameInput.value = role.name;
+  nameInput.disabled = (roleId === 'everyone');
+
+  const colorPick = document.getElementById('reColorPick');
+  colorPick.innerHTML = ROLE_COLORS.map(c=>
+    `<button type="button" class="avatar-opt color-opt ${c===editingRoleColor?'sel':''}" data-c="${c}" style="background:${c};"></button>`
+  ).join('');
+  colorPick.querySelectorAll('.color-opt').forEach(btn=>{
+    btn.onclick = ()=>{ colorPick.querySelectorAll('.color-opt').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); editingRoleColor = btn.dataset.c; };
+  });
+
+  document.getElementById('rePerms').innerHTML = PERMISSIONS.map(p=>
+    `<label class="perm-check-row"><input type="checkbox" id="rp_${p.key}" ${role.perms && role.perms[p.key] ? 'checked' : ''}> ${esc(p.label)}</label>`
+  ).join('');
+
+  document.getElementById('reDeleteBtn').style.display = (roleId && roleId!=='everyone') ? 'block' : 'none';
+
+  document.getElementById('rolesListView').style.display = 'none';
+  document.getElementById('roleEditView').style.display = 'block';
+}
+function saveRole(){
+  const s = getServer(settingsServerId);
+  const name = document.getElementById('reName').value.trim();
+  if(!name && editingRoleId!=='everyone'){ showToast("Donne un nom au rôle."); return; }
+  const perms = {};
+  PERMISSIONS.forEach(p=>{ perms[p.key] = document.getElementById(`rp_${p.key}`).checked; });
+
+  if(editingRoleId){
+    const role = s.roles.find(r=>r.id===editingRoleId);
+    if(editingRoleId!=='everyone') role.name = name;
+    role.color = editingRoleColor;
+    role.perms = perms;
+  } else {
+    s.roles.push({ id: uid('role'), name, color: editingRoleColor, perms });
+  }
+  saveDB();
+  backToRolesList();
+}
+function deleteRole(){
+  if(!editingRoleId || editingRoleId==='everyone') return;
+  const s = getServer(settingsServerId);
+  s.roles = s.roles.filter(r=>r.id!==editingRoleId);
+  Object.keys(s.memberRoles).forEach(uidKey=>{
+    s.memberRoles[uidKey] = s.memberRoles[uidKey].filter(rid=>rid!==editingRoleId);
+  });
+  saveDB();
+  backToRolesList();
+}
+
+/* ---------- channel settings (rename, category, per-role permissions) ---------- */
+let editingChannelId = null;
+function openChannelSettings(channelId){
+  const s = getServer(state.serverId);
+  const c = s.channels.find(ch=>ch.id===channelId);
+  if(!c) return;
+  editingChannelId = channelId;
+  document.getElementById('csName').value = c.name;
+  const sel = document.getElementById('csCategory');
+  sel.innerHTML = `<option value="">Aucune</option>` + s.categories.map(cat=>`<option value="${cat.id}">${esc(cat.name)}</option>`).join('');
+  sel.value = c.categoryId || '';
+
+  document.getElementById('csPerms').innerHTML = s.roles.map(r=>{
+    const ow = c.overwrites[r.id] || {};
+    const opt = (kind, val) => {
+      const v = val===true?'true':val===false?'false':'inherit';
+      return `<option value="true" ${v==='true'?'selected':''}>${kind} : Autorisé</option>
+              <option value="inherit" ${v==='inherit'?'selected':''}>${kind} : Hérité</option>
+              <option value="false" ${v==='false'?'selected':''}>${kind} : Refusé</option>`;
+    };
+    return `<div class="perm-role-row">
+      <span class="rname" style="color:${r.color};">${esc(r.name)}</span>
+      <select class="perm-select" data-role="${r.id}" data-kind="view">${opt('Voir', ow.view)}</select>
+      <select class="perm-select" data-role="${r.id}" data-kind="manage">${opt('Gérer', ow.manage)}</select>
+    </div>`;
+  }).join('');
+
+  document.getElementById('csDeleteBtn').style.display = canManageChannel(s, currentUser().id, c) ? 'block' : 'none';
+  openOverlay('ovChannelSettings');
+}
+function saveChannelSettings(){
+  const s = getServer(state.serverId);
+  const c = s.channels.find(ch=>ch.id===editingChannelId);
+  if(!c) return;
+  const name = document.getElementById('csName').value.trim().toLowerCase().replace(/\s+/g,'-');
+  if(name) c.name = name;
+  c.categoryId = document.getElementById('csCategory').value || null;
+  const overwrites = {};
+  document.querySelectorAll('#csPerms .perm-select').forEach(sel=>{
+    const rid = sel.dataset.role, kind = sel.dataset.kind, val = sel.value;
+    if(!overwrites[rid]) overwrites[rid] = {};
+    if(val!=='inherit') overwrites[rid][kind] = (val==='true');
+  });
+  Object.keys(overwrites).forEach(rid=>{ if(Object.keys(overwrites[rid]).length===0) delete overwrites[rid]; });
+  c.overwrites = overwrites;
+  saveDB();
+  closeOverlay('ovChannelSettings');
+  renderAll();
+}
+function deleteChannel(){
+  const s = getServer(state.serverId);
+  s.channels = s.channels.filter(ch=>ch.id!==editingChannelId);
+  delete db.messages[editingChannelId];
+  saveDB();
+  closeOverlay('ovChannelSettings');
+  if(state.channelId===editingChannelId){
+    state.channelId = (s.channels[0] && s.channels[0].id) || null;
+  }
+  renderAll();
+}
+
+/* ---------- profile card (shows banner, avatar, roles) ---------- */
+function openProfileCard(userId, serverId){
+  const m = db.users[userId];
+  if(!m) return;
+  const banner = document.getElementById('pcBanner');
+  if(m.banner && m.banner.startsWith('data:image')){ banner.style.backgroundImage = `url(${m.banner})`; banner.style.backgroundSize='cover'; banner.style.backgroundPosition='center'; banner.style.backgroundColor=''; }
+  else { banner.style.backgroundImage=''; banner.style.backgroundColor = m.banner || '#6f6ffb'; }
+  document.getElementById('pcAvatar').innerHTML = avatarHTML(m);
+  document.getElementById('pcName').innerHTML = esc(m.username) + verifiedBadgeHTML(m);
+  document.getElementById('pcStatus').textContent = m.statusText || (m.online ? 'En ligne' : 'Hors ligne');
+  const bioEl = document.getElementById('pcBio');
+  bioEl.textContent = m.bio || '';
+  bioEl.style.display = m.bio ? 'block' : 'none';
+  const rolesEl = document.getElementById('pcRoles');
+  if(serverId && serverId!=='null'){
+    const s = getServer(serverId);
+    rolesEl.innerHTML = s ? roleBadgesHTML(s, userId) : '';
+  } else {
+    rolesEl.innerHTML = '';
+  }
+  openOverlay('ovProfileCard');
+}
+
+/* =========================================================
+   ADMINISTRATION (site-wide — pikachu, or anyone granted
+   siteAdmin from this panel)
+   ========================================================= */
+function openAdminPanel(){
+  const u = currentUser();
+  if(!isSiteAdmin(u)) return;
+  setAdminTab('users');
+  openOverlay('ovAdminPanel');
+}
+function setAdminTab(tab){
+  ['users','servers'].forEach(t=>{
+    document.getElementById(`adminTab-${t}`).style.display = (t===tab) ? 'block' : 'none';
+    document.getElementById(`adminTabBtn-${t}`).classList.toggle('active', t===tab);
+  });
+  if(tab==='users') renderAdminUsers(); else renderAdminServers();
+}
+function renderAdminUsers(){
+  const me = currentUser();
+  const wrap = document.getElementById('adminTab-users');
+  const users = Object.values(db.users).sort((a,b)=>a.username.localeCompare(b.username));
+  wrap.innerHTML = users.map(x=>{
+    const isMe = x.id===me.id;
+    return `<div class="admin-row">
+      <div class="av">${avatarHTML(x)}</div>
+      <div class="meta"><div>${esc(x.username)}${verifiedBadgeHTML(x)}</div><div class="sub">${x.online?'En ligne':'Hors ligne'}${x.siteAdmin?' · admin du site':''}</div></div>
+      <button class="admin-toggle ${x.verified?'on':''}" title="Basculer le badge vérifié" onclick="adminToggleVerified('${x.id}')">✓ Vérifié</button>
+      <button class="admin-toggle ${x.siteAdmin?'on':''}" title="Basculer les droits admin du site" ${isMe?'disabled style="opacity:.35;"':''} onclick="adminToggleSiteAdmin('${x.id}')">🛡️ Admin</button>
+      <button class="icon-sm no" title="Supprimer ce compte" ${isMe?'disabled style="opacity:.3;"':''} onclick="adminDeleteUser('${x.id}')">🗑️</button>
+    </div>`;
+  }).join('');
+}
+function renderAdminServers(){
+  const wrap = document.getElementById('adminTab-servers');
+  const servers = Object.values(db.servers);
+  if(servers.length===0){ wrap.innerHTML = `<div style="padding:16px 8px;color:var(--text-faint);font-size:13px;">Aucun serveur créé pour l'instant.</div>`; return; }
+  wrap.innerHTML = servers.map(sv=>{
+    const owner = db.users[sv.ownerId];
+    return `<div class="admin-row">
+      <div class="av">${esc(sv.icon)}</div>
+      <div class="meta"><div>${esc(sv.name)}</div><div class="sub">${sv.members.length} membre(s) · propriétaire : ${owner?esc(owner.username):'inconnu'}</div></div>
+      <button class="icon-sm no" title="Supprimer ce serveur" onclick="adminDeleteServer('${sv.id}')">🗑️</button>
+    </div>`;
+  }).join('');
+}
+function adminToggleVerified(userId){
+  const x = db.users[userId]; if(!x) return;
+  x.verified = !x.verified;
+  saveDB();
+  renderAdminUsers();
+  renderAll();
+}
+function adminToggleSiteAdmin(userId){
+  const me = currentUser();
+  if(userId===me.id) return;
+  const x = db.users[userId]; if(!x) return;
+  x.siteAdmin = !x.siteAdmin;
+  saveDB();
+  renderAdminUsers();
+  renderAll();
+}
+function adminDeleteUser(userId){
+  const me = currentUser();
+  if(userId===me.id) return;
+  const x = db.users[userId]; if(!x) return;
+  if(!confirm(`Supprimer définitivement le compte "${x.username}" ? Cette action est irréversible.`)) return;
+  Object.values(db.servers).forEach(sv=>{
+    if(sv.ownerId===userId){
+      sv.channels.forEach(c=>delete db.messages[c.id]);
+      delete db.servers[sv.id];
+    } else {
+      sv.members = sv.members.filter(id=>id!==userId);
+      if(sv.memberRoles) delete sv.memberRoles[userId];
+      if(sv.bannedUserIds) sv.bannedUserIds = sv.bannedUserIds.filter(id=>id!==userId);
+    }
+  });
+  Object.values(db.friendships).forEach(fr=>{
+    fr.friends = fr.friends.filter(id=>id!==userId);
+    fr.outgoing = fr.outgoing.filter(id=>id!==userId);
+    fr.incoming = fr.incoming.filter(id=>id!==userId);
+  });
+  delete db.friendships[userId];
+  Object.keys(db.dmThreads).forEach(otherId=>{
+    db.dmThreads[otherId] = db.dmThreads[otherId].filter(id=>id!==userId);
+  });
+  delete db.dmThreads[userId];
+  Object.keys(db.calls).forEach(rid=>{
+    if(db.calls[rid].participants[userId]){
+      delete db.calls[rid].participants[userId];
+      if(Object.keys(db.calls[rid].participants).length===0) delete db.calls[rid];
+    }
+  });
+  delete db.users[userId];
+  saveDB();
+  showToast(`Compte "${x.username}" supprimé.`);
+  renderAdminUsers();
+  renderAll();
+}
+function adminDeleteServer(sid){
+  const sv = db.servers[sid]; if(!sv) return;
+  if(!confirm(`Supprimer définitivement le serveur "${sv.name}" ?`)) return;
+  sv.channels.forEach(c=>delete db.messages[c.id]);
+  delete db.servers[sid];
+  saveDB();
+  showToast(`Serveur "${sv.name}" supprimé.`);
+  renderAdminServers();
+  renderAll();
+}
+
+function leaveOrDeleteServer(){
+  const sid = document.getElementById('ssLeaveBtn').dataset.sid;
+  const s = db.servers[sid];
+  const u = currentUser();
+  if(s.ownerId === u.id){
+    delete db.servers[sid];
+    Object.keys(db.messages).forEach(chId=>{ if(s.channels.some(c=>c.id===chId)) delete db.messages[chId]; });
+  } else {
+    s.members = s.members.filter(id=>id!==u.id);
+  }
+  saveDB();
+  closeOverlay('ovServerSettings');
+  goHome();
+}
+
+/* =========================================================
+   MAIN (header + messages)
+   ========================================================= */
+function activeChannelId(){
+  if(state.view==='server' && state.channelId) return state.channelId;
+  if(state.view==='home' && state.dmUserId) return dmChannelId(currentUser().id, state.dmUserId);
+  return null;
+}
+
+function renderMain(){
+  const header = document.getElementById('mainheader');
+  const msgsWrap = document.getElementById('messages');
+  const composer = document.getElementById('composer');
+  const u = currentUser();
+
+  if(state.view==='server'){
+    const s = getServer(state.serverId);
+    if(!s){ goHome(); return; }
+    let ch = s.channels.find(c=>c.id===state.channelId);
+    if(ch && !canViewChannel(s, u.id, ch)){
+      const fallback = s.channels.find(c=>canViewChannel(s,u.id,c));
+      state.channelId = fallback ? fallback.id : null;
+      ch = fallback || null;
+    }
+    const icon = ch ? (ch.type==='voice' ? '🔊' : '#') : '#';
+    header.innerHTML = `<button id="mobileToggle" onclick="toggleMobileCol2()">☰</button><span class="hash">${icon}</span>&nbsp;<span>${ch?esc(ch.name):'Aucun salon accessible'}</span><div class="right"><button onclick="toggleMobileCol3()" title="Membres">👥</button></div>`;
+    if(!ch){ composer.style.display='none'; msgsWrap.innerHTML = `<div class="empty-state"><div class="big">🔒</div><h3>Rien à voir ici</h3><p>Tu n'as accès à aucun salon de ce serveur pour l'instant.</p></div>`; return; }
+    if(ch.type === 'voice'){ renderVoiceChannelView(s, ch); return; }
+    composer.style.display = 'block';
+    document.getElementById('msgInput').placeholder = `Écrire dans #${ch?ch.name:''}`;
+  } else if(state.view==='home' && state.dmUserId){
+    const f = db.users[state.dmUserId];
+    if(!f){ goHome(); return; }
+    header.innerHTML = `<button id="mobileToggle" onclick="toggleMobileCol2()">☰</button><span class="av" style="display:inline-flex;width:24px;height:24px;font-size:16px;vertical-align:middle;">${avatarHTML(f)}</span> <span>${esc(f.username)}${verifiedBadgeHTML(f)}</span><div class="right"><button title="Appeler" onclick="callDM('${f.id}')">📞</button></div>`;
+    composer.style.display = 'block';
+    document.getElementById('msgInput').placeholder = `Envoyer un message à ${f.username}`;
+  } else {
+    header.innerHTML = `<button id="mobileToggle" onclick="toggleMobileCol2()">☰</button><span>💬 Messages privés</span>`;
+    composer.style.display = 'none';
+    msgsWrap.innerHTML = `<div class="empty-state"><div class="big">👋</div><h3>Choisis une conversation</h3><p>Sélectionne un ami à gauche pour lui envoyer un message, ou rejoins un serveur.</p></div>`;
+    return;
+  }
+
+  renderMessages();
+}
+
+/* Vue "salon vocal" : grille des personnes connectées + contrôles micro/casque.
+   Simulation locale — personne ne s'entend réellement. */
+function renderVoiceChannelView(s, ch){
+  document.getElementById('composer').style.display = 'none';
+  const msgsWrap = document.getElementById('messages');
+  const u = currentUser();
+  const rid = ch.id;
+  const room = db.calls[rid];
+  const participantIds = room ? Object.keys(room.participants) : [];
+  const amIn = participantIds.includes(u.id);
+
+  const tiles = participantIds.map(pid=>{
+    const pu = db.users[pid]; if(!pu) return '';
+    const p = room.participants[pid];
+    return `<div class="voice-tile">
+      <div class="av ${(!p.muted && !p.deafened) ? 'speaking' : ''}">${avatarHTML(pu)}</div>
+      <div class="name">${esc(pu.username)}${verifiedBadgeHTML(pu)}</div>
+      <div class="icons"><span>${p.muted||p.deafened?'🔇':'🎤'}</span>${p.deafened?'<span>🔕</span>':''}</div>
+    </div>`;
+  }).join('');
+
+  let controls;
+  if(amIn){
+    const p = room.participants[u.id];
+    controls = `<div class="call-controls">
+      <button class="call-btn ${p.muted?'active':''}" title="${p.muted?'Activer le micro':'Couper le micro'}" onclick="toggleMic()">${p.muted?'🔇':'🎤'}</button>
+      <button class="call-btn ${p.deafened?'active':''}" title="${p.deafened?'Activer le casque':'Couper le casque'}" onclick="toggleHeadset()">${p.deafened?'🔕':'🎧'}</button>
+      <button class="call-btn hangup" title="Quitter le vocal" onclick="leaveRoom()">📞</button>
+    </div>`;
+  } else {
+    controls = `<button class="join-voice-btn" onclick="joinRoom('${rid}','channel')">🔊 Rejoindre le vocal</button>`;
+  }
+
+  msgsWrap.innerHTML = `<div class="voice-room">
+    <div class="vr-title">${participantIds.length>0 ? `${participantIds.length} connecté(s) à ce salon` : 'Personne dans ce salon vocal pour le moment'}</div>
+    ${tiles ? `<div class="voice-grid">${tiles}</div>` : ''}
+    ${controls}
+  </div>`;
+}
+
+function callDM(otherId){ joinRoom(dmCallId(currentUser().id, otherId), 'dm'); }
+
+/* Bannière d'appel en haut d'une conversation privée : demande entrante
+   (répondre/refuser) si l'autre a déjà rejoint, ou mini contrôles si on
+   est soi-même déjà en appel. */
+function renderCallBanner(){
+  const banner = document.getElementById('callBanner');
+  if(!(state.view==='home' && state.dmUserId)){ banner.style.display='none'; banner.innerHTML=''; return; }
+  const u = currentUser();
+  const other = db.users[state.dmUserId];
+  if(!other){ banner.style.display='none'; return; }
+  const rid = dmCallId(u.id, state.dmUserId);
+  const room = db.calls[rid];
+  const ids = room ? Object.keys(room.participants) : [];
+  if(ids.length===0){ banner.style.display='none'; banner.innerHTML=''; return; }
+
+  banner.style.display = 'flex';
+  const miniBtn = 'style="width:34px;height:34px;border-radius:8px;background:var(--input);color:var(--text-dim);font-size:14px;"';
+  if(ids.includes(u.id)){
+    const p = room.participants[u.id];
+    banner.innerHTML = `
+      <div class="cb-text"><div class="cb-title">📞 En appel avec ${esc(other.username)}</div><div class="cb-sub">${ids.length} participant(s) — simulation, pas de vrai son</div></div>
+      <div class="cb-actions">
+        <button ${miniBtn} title="Micro" onclick="toggleMic()">${p.muted?'🔇':'🎤'}</button>
+        <button ${miniBtn} title="Casque" onclick="toggleHeadset()">${p.deafened?'🔕':'🎧'}</button>
+        <button ${miniBtn} style="color:var(--danger);" title="Raccrocher" onclick="leaveRoom()">📞</button>
+      </div>`;
+  } else {
+    banner.innerHTML = `
+      <div class="cb-text"><div class="cb-title">📞 Appel entrant de ${esc(other.username)}</div><div class="cb-sub">Vocal simulé — micro/casque uniquement visuels</div></div>
+      <div class="cb-actions">
+        <button class="cb-accept" onclick="joinRoom('${rid}','dm')">Répondre</button>
+        <button class="cb-decline" onclick="declineCall('${rid}')">Refuser</button>
+      </div>`;
+  }
+}
+
+function renderMessages(){
+  const chId = activeChannelId();
+  const wrap = document.getElementById('messages');
+  if(!chId){ return; }
+  const list = db.messages[chId] || [];
+  if(list.length===0){
+    const label = state.view==='server' ? 'ce salon' : 'cette conversation';
+    wrap.innerHTML = `<div class="empty-state"><div class="big">✨</div><h3>C'est calme ici</h3><p>Sois le premier à écrire dans ${label} !</p></div>`;
+    return;
+  }
+  let html = '';
+  let lastAuthor = null;
+  list.forEach(m=>{
+    const author = db.users[m.authorId];
+    if(!author) return;
+    const ctxServer = state.view==='server' ? `'${state.serverId}'` : 'null';
+    html += `<div class="msg">
+      <div class="av clickable" onclick="openProfileCard('${author.id}',${ctxServer})">${avatarHTML(author)}</div>
+      <div class="body">
+        <div class="head"><span class="author" style="cursor:pointer;" onclick="openProfileCard('${author.id}',${ctxServer})">${esc(author.username)}${verifiedBadgeHTML(author)}</span><span class="time">${fmtTime(m.ts)}</span></div>
+        <div class="text">${esc(m.text)}</div>
+      </div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function sendCurrentMessage(){
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if(!text) return;
+  const chId = activeChannelId();
+  if(!chId) return;
+  const u = currentUser();
+  if(!db.messages[chId]) db.messages[chId] = [];
+  db.messages[chId].push({ id: uid('m'), authorId: u.id, text, ts: now() });
+  saveDB();
+  input.value = '';
+  autoGrow(input);
+  renderMessages();
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const input = document.getElementById('msgInput');
+  input.addEventListener('input', ()=>autoGrow(input));
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendCurrentMessage(); }
+  });
+});
+function autoGrow(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
+
+/* =========================================================
+   COL3 (member list for servers)
+   ========================================================= */
+function renderCol3(){
+  const col3 = document.getElementById('col3');
+  if(state.view !== 'server'){ col3.classList.add('hidden'); return; }
+  col3.classList.remove('hidden');
+  const s = getServer(state.serverId);
+  if(!s) return;
+  const owner = s.members.filter(id=>id===s.ownerId);
+  const others = s.members.filter(id=>id!==s.ownerId);
+  const row = id => {
+    const m = db.users[id]; if(!m) return '';
+    return `<div class="list-item" style="cursor:pointer;" onclick="openProfileCard('${id}','${s.id}')">
+      <div class="av">${avatarHTML(m)}<span class="dot ${m.online?'on':'off'}"></span></div>
+      <div class="meta"><div class="name">${esc(m.username)}${verifiedBadgeHTML(m)}${id===s.ownerId?' 👑':''}</div>${roleBadgesHTML(s,id)}</div>
+    </div>`;
+  };
+  col3.innerHTML = `<div class="grp">Membres — ${s.members.length}</div>` + owner.map(row).join('') + others.map(row).join('');
+}
+
+/* =========================================================
+   USER PANEL + SETTINGS
+   ========================================================= */
+function renderUserPanel(){
+  const u = currentUser();
+  if(!u) return;
+  document.getElementById('upAvatar').innerHTML = avatarHTML(u);
+  document.getElementById('upName').innerHTML = esc(u.username) + verifiedBadgeHTML(u);
+  document.getElementById('upStatus').textContent = u.statusText || 'En ligne';
+}
+
+function roomLabel(roomId, room){
+  if(room.kind === 'dm'){
+    const u = currentUser();
+    const otherId = Object.keys(room.participants).find(id=>id!==u.id);
+    const other = otherId ? db.users[otherId] : null;
+    return { title: other ? `Appel avec ${esc(other.username)}` : 'Appel', sub: `${Object.keys(room.participants).length} participant(s)` };
+  }
+  for(const s of Object.values(db.servers)){
+    const ch = s.channels.find(c=>c.id===roomId);
+    if(ch) return { title: `#${esc(ch.name)}`, sub: `${esc(s.name)} · ${Object.keys(room.participants).length} connecté(s)` };
+  }
+  return { title: 'Vocal', sub: '' };
+}
+function renderVoiceBar(){
+  const bar = document.getElementById('voiceBar');
+  const rid = currentRoomId();
+  if(!rid){ bar.style.display='none'; bar.innerHTML=''; return; }
+  const room = db.calls[rid];
+  const p = room.participants[currentUser().id];
+  const { title, sub } = roomLabel(rid, room);
+  bar.style.display = 'flex';
+  bar.innerHTML = `
+    <div class="vb-info" onclick="goToRoom('${rid}')" style="cursor:pointer;">
+      <div class="vb-chan">🔊 ${title}</div>
+      <div class="vb-sub">${sub}</div>
+    </div>
+    <button title="${p.muted?'Activer le micro':'Couper le micro'}" onclick="toggleMic()">${p.muted?'🔇':'🎤'}</button>
+    <button title="${p.deafened?'Activer le casque':'Couper le casque'}" onclick="toggleHeadset()">${p.deafened?'🔕':'🎧'}</button>
+    <button class="hangup" title="Quitter" onclick="leaveRoom()">📞</button>
+  `;
+}
+
+let setAvatarSel = null;
+let setAvatarImage = null; // dataURL if a new photo was just uploaded in this modal session
+let setBannerValue = null; // hex color or dataURL
+
+function applyBannerPreview(value){
+  const prev = document.getElementById('setBannerPreview');
+  if(value && value.startsWith('data:image')){ prev.style.backgroundImage = `url(${value})`; prev.style.backgroundSize='cover'; prev.style.backgroundPosition='center'; prev.style.backgroundColor=''; }
+  else { prev.style.backgroundImage=''; prev.style.backgroundColor = value || BANNER_COLORS[0]; }
+}
+
+function setSettingsTab(tab){
+  ['profile','account'].forEach(t=>{
+    document.getElementById(`setTab-${t}`).style.display = (t===tab) ? 'block' : 'none';
+    document.getElementById(`setTabBtn-${t}`).classList.toggle('active', t===tab);
+  });
+}
+
+function openSettings(){
+  const u = currentUser();
+  setSettingsTab('profile');
+  const isPhoto = u.avatar && u.avatar.startsWith('data:image');
+  setAvatarSel = isPhoto ? AVATARS[0] : u.avatar;
+  setAvatarImage = isPhoto ? u.avatar : null;
+  document.getElementById('setName').value = u.username;
+  document.getElementById('setStatusText').value = u.statusText || '';
+  document.getElementById('setBio').value = u.bio || '';
+  const preview = document.getElementById('setPhotoPreview');
+  if(isPhoto){ preview.innerHTML = `<img src="${u.avatar}" alt="">`; preview.classList.add('has-img'); }
+  else { preview.innerHTML = '🙂'; preview.classList.remove('has-img'); }
+  renderAvatarPick('setAvatarPick', setAvatarSel, a=>{ setAvatarSel=a; setAvatarImage=null; resetPhotoPreview('setPhotoPreview'); });
+
+  setBannerValue = u.banner || BANNER_COLORS[0];
+  applyBannerPreview(setBannerValue);
+  document.getElementById('setBannerAvatarChip').innerHTML = avatarHTML(u);
+  const colorPick = document.getElementById('bannerColorPick');
+  colorPick.innerHTML = BANNER_COLORS.map(c=>
+    `<button type="button" class="color-opt ${c===setBannerValue?'sel':''}" data-c="${c}" style="background:${c};"></button>`
+  ).join('');
+  colorPick.querySelectorAll('.color-opt').forEach(btn=>{
+    btn.onclick = ()=>{ colorPick.querySelectorAll('.color-opt').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); setBannerValue = btn.dataset.c; applyBannerPreview(setBannerValue); };
+  });
+
+  document.getElementById('pwOld').value = '';
+  document.getElementById('pwNew').value = '';
+  document.getElementById('pwNewConfirm').value = '';
+  document.getElementById('pwError').textContent = '';
+
+  openOverlay('ovSettings');
+}
+function saveSettings(){
+  const u = currentUser();
+  const newName = document.getElementById('setName').value.trim();
+  if(newName && newName !== u.username){
+    const taken = Object.values(db.users).some(x=>x.id!==u.id && x.username.toLowerCase()===newName.toLowerCase());
+    if(taken){ showToast("Ce nom est déjà pris."); return; }
+    u.username = newName;
+  }
+  u.avatar = setAvatarImage || setAvatarSel || u.avatar;
+  u.banner = setBannerValue || u.banner;
+  u.statusText = document.getElementById('setStatusText').value.trim();
+  u.bio = document.getElementById('setBio').value.trim().slice(0,190);
+  saveDB();
+  closeOverlay('ovSettings');
+  renderAll();
+}
+function changePassword(){
+  const u = currentUser();
+  const oldPass = document.getElementById('pwOld').value;
+  const newPass = document.getElementById('pwNew').value;
+  const confirmPass = document.getElementById('pwNewConfirm').value;
+  const err = document.getElementById('pwError');
+  err.textContent = '';
+  if(oldPass !== u.password){ err.textContent = "L'ancien mot de passe est incorrect."; return; }
+  if(newPass.length < 6){ err.textContent = "Le nouveau mot de passe doit faire 6 caractères minimum."; return; }
+  if(newPass !== confirmPass){ err.textContent = "Les deux nouveaux mots de passe ne correspondent pas."; return; }
+  u.password = newPass;
+  saveDB();
+  document.getElementById('pwOld').value = '';
+  document.getElementById('pwNew').value = '';
+  document.getElementById('pwNewConfirm').value = '';
+  showToast("Mot de passe mis à jour.");
+}
+
+/* =========================================================
+   MOBILE HELPERS
+   ========================================================= */
+function toggleMobileCol2(){ document.getElementById('col2').classList.toggle('open'); document.getElementById('col3').classList.remove('open'); }
+function toggleMobileCol3(){ document.getElementById('col3').classList.toggle('open'); document.getElementById('col2').classList.remove('open'); }
+function closeMobileCol2(){ document.getElementById('col2').classList.remove('open'); }
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('on'), 2200);
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+if(session && db.users[session.userId]){
+  const u = db.users[session.userId];
+  u.online = true; saveDB();
+  boot();
+} else {
+  renderAvatarPick('regAvatarPick', regAvatar, a=>regAvatar=a);
+}
+wireAvatarUpload('setPhotoFile', 'setPhotoPreview', (url)=>{ setAvatarImage = url; });
+
+document.getElementById('setBannerFile').addEventListener('change', async ()=>{
+  const input = document.getElementById('setBannerFile');
+  const file = input.files[0];
+  if(!file) return;
+  try{
+    const dataUrl = await fileToBannerDataURL(file);
+    setBannerValue = dataUrl;
+    applyBannerPreview(dataUrl);
+    document.querySelectorAll('#bannerColorPick .color-opt').forEach(b=>b.classList.remove('sel'));
+  }catch(err){
+    showToast("Impossible de lire cette image.");
+  }finally{
+    input.value = '';
+  }
+});
+
+window.addEventListener('beforeunload', ()=>{
+  const u = currentUser();
+  if(u){ u.online = false; saveDB(); }
+});
+</script>
+</body>
+</html>
